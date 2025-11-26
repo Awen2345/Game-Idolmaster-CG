@@ -1,4 +1,5 @@
-import { Rarity, Idol, Chapter, Event, IdolCommu, CommuType } from './types';
+
+import { Rarity, Idol, Chapter, Event, IdolCommu, CommuType, Song } from './types';
 
 // Game Balance
 export const MAX_STAMINA_BASE = 50;
@@ -69,4 +70,30 @@ export const MOCK_IDOL_COMMUS: IdolCommu[] = [
 
 export const MOCK_EXTRA_COMMUS: Chapter[] = [
   { id: 'ext_1', title: 'April Fools 2024', type: CommuType.EXTRA, isRead: false, dialogs: [{ speaker: 'Chihiro', text: 'Just kidding!', expression: 'happy' }] }
+];
+
+// Note: For these to work locally, ensure you have files in public/music/ and public/covers/
+// Or use external URLs for testing.
+export const MOCK_SONGS: Song[] = [
+    {
+        id: 'sng_1',
+        title: 'Star!!',
+        artist: 'Cinderella Project',
+        url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', // Example URL
+        cover: 'https://picsum.photos/seed/star/100/100'
+    },
+    {
+        id: 'sng_2',
+        title: 'Shine!!',
+        artist: 'Cinderella Project',
+        url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3', // Example URL
+        cover: 'https://picsum.photos/seed/shine/100/100'
+    },
+    {
+        id: 'sng_3',
+        title: 'M@GIC',
+        artist: 'Cinderella Project',
+        url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3', // Example URL
+        cover: 'https://picsum.photos/seed/magic/100/100'
+    }
 ];

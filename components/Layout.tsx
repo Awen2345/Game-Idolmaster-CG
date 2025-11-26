@@ -1,5 +1,7 @@
+
 import React from 'react';
 import { UserState } from '../types';
+import MusicPlayer from './MusicPlayer';
 
 interface LayoutProps {
   user: UserState;
@@ -8,9 +10,10 @@ interface LayoutProps {
   onTabChange: (tab: string) => void;
   onUseItem: (type: 'staminaDrink' | 'trainerTicket') => void;
   onLogout: () => void;
+  isEventActive?: boolean;
 }
 
-const Layout: React.FC<LayoutProps> = ({ user, children, activeTab, onTabChange, onUseItem, onLogout }) => {
+const Layout: React.FC<LayoutProps> = ({ user, children, activeTab, onTabChange, onUseItem, onLogout, isEventActive }) => {
   return (
     <div className="flex flex-col h-screen bg-gray-900 text-white overflow-hidden max-w-md mx-auto shadow-2xl relative border-x border-gray-700">
       {/* Header */}
@@ -49,11 +52,19 @@ const Layout: React.FC<LayoutProps> = ({ user, children, activeTab, onTabChange,
         {children}
       </div>
 
+      {/* Global Music Player Overlay */}
+      <MusicPlayer />
+
       {/* Bottom Navigation */}
-      <div className="bg-gray-800 border-t border-gray-700 p-1 flex justify-around items-center h-16 shrink-0 z-20">
+      <div className="bg-gray-800 border-t border-gray-700 p-1 flex justify-around items-center h-16 shrink-0 z-30 relative">
         <NavButton icon="home" label="Home" active={activeTab === 'HOME'} onClick={() => onTabChange('HOME')} />
         <NavButton icon="users" label="Idols" active={activeTab === 'IDOLS'} onClick={() => onTabChange('IDOLS')} />
-        <NavButton icon="trophy" label="Event" active={activeTab === 'EVENT'} onClick={() => onTabChange('EVENT')} />
+        
+        {/* Conditional Event Button */}
+        {isEventActive && (
+          <NavButton icon="trophy" label="Event" active={activeTab === 'EVENT'} onClick={() => onTabChange('EVENT')} isSpecial />
+        )}
+        
         <NavButton icon="book-open" label="Commu" active={activeTab === 'COMMU'} onClick={() => onTabChange('COMMU')} />
         <NavButton icon="star" label="Gacha" active={activeTab === 'GACHA'} onClick={() => onTabChange('GACHA')} />
         <NavButton icon="shopping-cart" label="Shop" active={activeTab === 'SHOP'} onClick={() => onTabChange('SHOP')} />
@@ -62,10 +73,12 @@ const Layout: React.FC<LayoutProps> = ({ user, children, activeTab, onTabChange,
   );
 };
 
-const NavButton = ({ icon, label, active, onClick }: any) => (
+const NavButton = ({ icon, label, active, onClick, isSpecial }: any) => (
   <button 
     onClick={onClick}
-    className={`flex flex-col items-center justify-center w-full h-full transition-colors ${active ? 'text-pink-400' : 'text-gray-400 hover:text-white'}`}
+    className={`flex flex-col items-center justify-center w-full h-full transition-colors ${
+        active ? 'text-pink-400' : 'text-gray-400 hover:text-white'
+    } ${isSpecial ? 'animate-pulse text-yellow-400' : ''}`}
   >
     <i className={`fas fa-${icon} text-lg mb-0.5 ${active ? 'animate-bounce' : ''}`}></i>
     <span className="text-[9px] uppercase font-bold tracking-wide">{label}</span>

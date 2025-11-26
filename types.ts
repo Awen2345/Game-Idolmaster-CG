@@ -98,3 +98,11 @@ export interface IdolCommu {
   name: string;
   chapters: Chapter[];
 }
+
+export interface Song {
+  id: string;
+  title: string;
+  artist: string;
+  url: string;
+  cover: string;
+}

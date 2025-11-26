@@ -13,6 +13,8 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 app.use('/assets/idols', express.static(path.join(__dirname, '../public/idols')));
 app.use('/assets/sprites', express.static(path.join(__dirname, '../public/sprites')));
+app.use('/assets/music', express.static(path.join(__dirname, '../public/music')));
+app.use('/assets/covers', express.static(path.join(__dirname, '../public/covers')));
 
 const STAMINA_REGEN_MS = 60000;
 

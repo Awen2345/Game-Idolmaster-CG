@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import Layout from './components/Layout';
 import Gacha from './components/Gacha';
@@ -97,7 +98,14 @@ const App: React.FC = () => {
   };
 
   return (
-    <Layout user={user} activeTab={activeTab} onTabChange={setActiveTab} onUseItem={useItem} onLogout={logout}>
+    <Layout 
+      user={user} 
+      activeTab={activeTab} 
+      onTabChange={setActiveTab} 
+      onUseItem={useItem} 
+      onLogout={logout}
+      isEventActive={event?.isActive}
+    >
       {renderContent()}
     </Layout>
   );
