@@ -1,10 +1,13 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { MOCK_SONGS } from '../constants';
-import { Song } from '../types';
 
-const MusicPlayer: React.FC = () => {
-  const [isOpen, setIsOpen] = useState(false);
+interface MusicPlayerProps {
+    isOpen: boolean;
+    onClose: () => void;
+}
+
+const MusicPlayer: React.FC<MusicPlayerProps> = ({ isOpen, onClose }) => {
   const [currentSongIndex, setCurrentSongIndex] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -40,33 +43,31 @@ const MusicPlayer: React.FC = () => {
 
   return (
     <>
-        {/* Floating Toggle Button */}
-        <button 
-            onClick={() => setIsOpen(!isOpen)}
-            className={`fixed bottom-20 right-4 w-12 h-12 rounded-full shadow-xl flex items-center justify-center z-50 transition-all duration-300 ${isOpen ? 'bg-pink-500 rotate-90' : 'bg-gray-800 border-2 border-pink-400'}`}
-        >
-            <i className={`fas ${isOpen ? 'fa-times' : 'fa-music'} text-white`}></i>
-            {isPlaying && !isOpen && (
-                <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-pink-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-pink-500"></span>
-                </span>
-            )}
-        </button>
-
         <audio ref={audioRef} src={currentSong.url} onEnded={nextSong} />
 
         {/* Jukebox Overlay */}
-        <div className={`fixed inset-x-0 bottom-0 bg-gray-900/95 backdrop-blur-xl border-t border-pink-500/30 transition-transform duration-500 z-40 rounded-t-3xl shadow-[0_-5px_20px_rgba(0,0,0,0.5)] ${isOpen ? 'translate-y-0' : 'translate-y-[120%]'}`}>
-            <div className="p-6 pb-24 max-w-md mx-auto">
+        <div className={`fixed inset-x-0 bottom-[64px] bg-gray-900/95 backdrop-blur-xl border-t border-pink-500/30 transition-transform duration-500 z-40 rounded-t-3xl shadow-[0_-5px_20px_rgba(0,0,0,0.5)] ${isOpen ? 'translate-y-0' : 'translate-y-[120%]'}`}>
+            
+            {/* Drag Handle / Close Button */}
+            <div className="w-full flex justify-center pt-2 pb-1" onClick={onClose}>
+                <div className="w-12 h-1.5 bg-gray-600 rounded-full cursor-pointer hover:bg-gray-400 transition-colors"></div>
+            </div>
+
+            <div className="p-6 pt-2 pb-6 max-w-md mx-auto">
+                {/* Header with Close */}
+                <div className="flex justify-between items-center mb-4">
+                     <h4 className="text-gray-400 text-xs font-bold uppercase tracking-widest">Now Playing</h4>
+                     <button onClick={onClose} className="text-gray-500 hover:text-white"><i className="fas fa-chevron-down"></i></button>
+                </div>
+
                 <div className="flex items-center gap-4 mb-6">
-                    <div className="w-20 h-20 rounded-lg overflow-hidden shadow-lg border border-white/10 relative">
+                    <div className="w-20 h-20 rounded-lg overflow-hidden shadow-lg border border-white/10 relative shrink-0">
                         <img src={currentSong.cover} alt="Cover" className={`w-full h-full object-cover ${isPlaying ? 'animate-[spin_4s_linear_infinite]' : ''}`} />
                         <div className="absolute inset-0 bg-black/20 rounded-lg ring-1 ring-inset ring-white/10"></div>
                     </div>
-                    <div className="flex-1 overflow-hidden">
-                        <h3 className="text-white font-bold text-lg truncate">{currentSong.title}</h3>
-                        <p className="text-pink-400 text-xs font-bold uppercase tracking-wider">{currentSong.artist}</p>
+                    <div className="flex-1 overflow-hidden min-w-0">
+                        <h3 className="text-white font-bold text-lg truncate leading-tight">{currentSong.title}</h3>
+                        <p className="text-pink-400 text-xs font-bold uppercase tracking-wider truncate">{currentSong.artist}</p>
                     </div>
                 </div>
 
@@ -77,9 +78,9 @@ const MusicPlayer: React.FC = () => {
                     </button>
                     <button 
                         onClick={togglePlay} 
-                        className="w-16 h-16 bg-gradient-to-br from-pink-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all text-white"
+                        className="w-14 h-14 bg-gradient-to-br from-pink-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all text-white border-2 border-white/20"
                     >
-                        <i className={`fas ${isPlaying ? 'fa-pause' : 'fa-play'} text-2xl ml-1`}></i>
+                        <i className={`fas ${isPlaying ? 'fa-pause' : 'fa-play'} text-xl ml-1`}></i>
                     </button>
                     <button onClick={nextSong} className="text-gray-400 hover:text-white transition-colors">
                         <i className="fas fa-forward text-2xl"></i>
@@ -87,18 +88,18 @@ const MusicPlayer: React.FC = () => {
                 </div>
 
                 {/* Playlist List */}
-                <div className="bg-black/40 rounded-xl p-2 max-h-40 overflow-y-auto custom-scrollbar">
+                <div className="bg-black/40 rounded-xl p-2 max-h-40 overflow-y-auto custom-scrollbar border border-white/5">
                     {MOCK_SONGS.map((song, idx) => (
                         <div 
                             key={song.id} 
                             onClick={() => selectSong(idx)}
                             className={`flex items-center gap-3 p-2 rounded cursor-pointer transition-colors ${currentSongIndex === idx ? 'bg-white/10' : 'hover:bg-white/5'}`}
                         >
-                            <span className={`text-xs w-4 ${currentSongIndex === idx ? 'text-pink-400' : 'text-gray-600'}`}>
+                            <span className={`text-xs w-4 text-center ${currentSongIndex === idx ? 'text-pink-400' : 'text-gray-600'}`}>
                                 {currentSongIndex === idx && isPlaying ? <i className="fas fa-volume-up animate-pulse"></i> : idx + 1}
                             </span>
-                            <div className="flex-1">
-                                <div className={`text-sm font-bold ${currentSongIndex === idx ? 'text-pink-300' : 'text-gray-300'}`}>{song.title}</div>
+                            <div className="flex-1 min-w-0">
+                                <div className={`text-sm font-bold truncate ${currentSongIndex === idx ? 'text-pink-300' : 'text-gray-300'}`}>{song.title}</div>
                             </div>
                         </div>
                     ))}

@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { UserState } from '../types';
 import MusicPlayer from './MusicPlayer';
 
@@ -14,6 +14,8 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ user, children, activeTab, onTabChange, onUseItem, onLogout, isEventActive }) => {
+  const [isMusicOpen, setIsMusicOpen] = useState(false);
+
   return (
     <div className="flex flex-col h-screen bg-gray-900 text-white overflow-hidden max-w-md mx-auto shadow-2xl relative border-x border-gray-700">
       {/* Header */}
@@ -52,22 +54,32 @@ const Layout: React.FC<LayoutProps> = ({ user, children, activeTab, onTabChange,
         {children}
       </div>
 
-      {/* Global Music Player Overlay */}
-      <MusicPlayer />
+      {/* Global Music Player Overlay (Controlled by Layout State) */}
+      <MusicPlayer isOpen={isMusicOpen} onClose={() => setIsMusicOpen(false)} />
 
       {/* Bottom Navigation */}
-      <div className="bg-gray-800 border-t border-gray-700 p-1 flex justify-around items-center h-16 shrink-0 z-30 relative">
+      <div className="bg-gray-800 border-t border-gray-700 p-1 flex justify-between items-center h-16 shrink-0 z-50 relative">
         <NavButton icon="home" label="Home" active={activeTab === 'HOME'} onClick={() => onTabChange('HOME')} />
         <NavButton icon="users" label="Idols" active={activeTab === 'IDOLS'} onClick={() => onTabChange('IDOLS')} />
         
         {/* Conditional Event Button */}
-        {isEventActive && (
+        {isEventActive ? (
           <NavButton icon="trophy" label="Event" active={activeTab === 'EVENT'} onClick={() => onTabChange('EVENT')} isSpecial />
+        ) : (
+          <NavButton icon="book-open" label="Commu" active={activeTab === 'COMMU'} onClick={() => onTabChange('COMMU')} />
         )}
         
-        <NavButton icon="book-open" label="Commu" active={activeTab === 'COMMU'} onClick={() => onTabChange('COMMU')} />
         <NavButton icon="star" label="Gacha" active={activeTab === 'GACHA'} onClick={() => onTabChange('GACHA')} />
+        
         <NavButton icon="shopping-cart" label="Shop" active={activeTab === 'SHOP'} onClick={() => onTabChange('SHOP')} />
+        
+        {/* Music Button - Toggles Overlay */}
+        <NavButton 
+            icon="music" 
+            label="Music" 
+            active={isMusicOpen} 
+            onClick={() => setIsMusicOpen(!isMusicOpen)} 
+        />
       </div>
     </div>
   );
@@ -76,7 +88,7 @@ const Layout: React.FC<LayoutProps> = ({ user, children, activeTab, onTabChange,
 const NavButton = ({ icon, label, active, onClick, isSpecial }: any) => (
   <button 
     onClick={onClick}
-    className={`flex flex-col items-center justify-center w-full h-full transition-colors ${
+    className={`flex flex-col items-center justify-center w-full h-full transition-colors relative ${
         active ? 'text-pink-400' : 'text-gray-400 hover:text-white'
     } ${isSpecial ? 'animate-pulse text-yellow-400' : ''}`}
   >
