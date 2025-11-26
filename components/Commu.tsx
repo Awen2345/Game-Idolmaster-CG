@@ -1,12 +1,19 @@
 
 import React, { useState, useEffect } from 'react';
-import { CommuType, Chapter, DialogLine } from '../types';
+import { CommuType, Chapter, DialogLine, UserSprite } from '../types';
 import StoryReader from './StoryReader';
 import FanmadeCreator from './FanmadeCreator';
-import { useGameEngine } from '../services/gameService';
 
-const Commu: React.FC = () => {
-  const { fetchChapters, fetchDialogs, saveFanmadeStory } = useGameEngine();
+interface CommuProps {
+    fetchChapters: (type: string) => Promise<Chapter[]>;
+    fetchDialogs: (id: string, isFan: boolean) => Promise<DialogLine[]>;
+    saveFanmadeStory: (title: string, dialogs: DialogLine[]) => Promise<boolean>;
+    uploadSprite: (name: string, base64: string) => Promise<boolean>;
+    fetchUserSprites: () => Promise<UserSprite[]>;
+}
+
+const Commu: React.FC<CommuProps> = ({ fetchChapters, fetchDialogs, saveFanmadeStory, uploadSprite, fetchUserSprites }) => {
+  // Use props instead of internal hook to maintain shared state with App.tsx
   const [path, setPath] = useState<any[]>([]); 
   const [activeChapter, setActiveChapter] = useState<Chapter | null>(null);
   const [activeDialogs, setActiveDialogs] = useState<DialogLine[]>([]);
@@ -33,14 +40,21 @@ const Commu: React.FC = () => {
     const load = async () => {
         if (path.length === 1 && path[0].type) {
             const data = await fetchChapters(path[0].type);
-            setLoadedChapters(data);
+            setLoadedChapters(data || []);
         }
     };
     load();
   }, [path, fetchChapters, isCreatorMode]); // Reload on mode switch to refresh fan list
 
   if (isCreatorMode) {
-      return <FanmadeCreator onSave={saveFanmadeStory} onCancel={() => setIsCreatorMode(false)} />;
+      return (
+          <FanmadeCreator 
+            onSave={saveFanmadeStory} 
+            onCancel={() => setIsCreatorMode(false)} 
+            onUploadSprite={uploadSprite}
+            onFetchSprites={fetchUserSprites}
+          />
+      );
   }
 
   const renderContent = () => {

@@ -14,6 +14,7 @@ const App: React.FC = () => {
     userId, user, idols, event, 
     login, register, logout, 
     useItem, pullGacha, retireIdols, trainIdol, buyItem, doEventWork,
+    fetchChapters, fetchDialogs, saveFanmadeStory, uploadSprite, fetchUserSprites,
     error 
   } = useGameEngine();
   
@@ -79,7 +80,15 @@ const App: React.FC = () => {
       case 'GACHA':
         return <Gacha jewels={user.starJewels} onPull={pullGacha} />;
       case 'COMMU':
-        return <Commu />;
+        return (
+            <Commu 
+                fetchChapters={fetchChapters}
+                fetchDialogs={fetchDialogs}
+                saveFanmadeStory={saveFanmadeStory}
+                uploadSprite={uploadSprite}
+                fetchUserSprites={fetchUserSprites}
+            />
+        );
       case 'SHOP':
         return <Shop user={user} onBuy={handleBuy} />;
       case 'EVENT':

@@ -25,7 +25,8 @@ const StoryReader: React.FC<StoryReaderProps> = ({ chapter, onClose }) => {
   if (currentLine?.customSpriteUrl) {
       spriteUrl = currentLine.customSpriteUrl;
   } else {
-      spriteUrl = `http://localhost:3001/assets/sprites/${currentLine?.speaker}/${currentLine?.expression || 'neutral'}.png`;
+      // Use relative path so it goes through Vite proxy (to port 3001)
+      spriteUrl = `/assets/sprites/${currentLine?.speaker}/${currentLine?.expression || 'neutral'}.png`;
   }
   
   const fallbackUrl = `https://picsum.photos/seed/${currentLine?.speaker}/400/600`;

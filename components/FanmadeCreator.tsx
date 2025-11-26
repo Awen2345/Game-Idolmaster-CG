@@ -1,16 +1,17 @@
 
 import React, { useState, useEffect } from 'react';
 import { DialogLine, UserSprite } from '../types';
-import { useGameEngine } from '../services/gameService';
 
 interface FanmadeCreatorProps {
   onSave: (title: string, dialogs: DialogLine[]) => Promise<boolean>;
   onCancel: () => void;
+  onUploadSprite: (name: string, base64: string) => Promise<boolean>;
+  onFetchSprites: () => Promise<UserSprite[]>;
 }
 
-const FanmadeCreator: React.FC<FanmadeCreatorProps> = ({ onSave, onCancel }) => {
-  const { uploadSprite, fetchUserSprites } = useGameEngine();
-  
+const FanmadeCreator: React.FC<FanmadeCreatorProps> = ({ onSave, onCancel, onUploadSprite, onFetchSprites }) => {
+  // Removed internal useGameEngine() hook to prevent state disconnection
+
   const [mode, setMode] = useState<'EDITOR' | 'ASSETS'>('EDITOR');
   const [title, setTitle] = useState('');
   const [lines, setLines] = useState<DialogLine[]>([{ speaker: 'Producer', text: 'Hello!', expression: 'neutral' }]);
@@ -25,7 +26,7 @@ const FanmadeCreator: React.FC<FanmadeCreatorProps> = ({ onSave, onCancel }) => 
   }, []);
 
   const loadAssets = async () => {
-      const sprites = await fetchUserSprites();
+      const sprites = await onFetchSprites();
       setUserSprites(sprites);
   };
 
@@ -76,7 +77,7 @@ const FanmadeCreator: React.FC<FanmadeCreatorProps> = ({ onSave, onCancel }) => 
       const reader = new FileReader();
       reader.onloadend = async () => {
           const base64 = reader.result as string;
-          const success = await uploadSprite(uploadName, base64);
+          const success = await onUploadSprite(uploadName, base64);
           if (success) {
               alert("Uploaded!");
               setUploadName('');

@@ -98,10 +98,19 @@ app.get('/api/event/active/:userId', (req, res) => {
             db.all("SELECT * FROM event_rewards_def WHERE event_id = ? ORDER BY point_threshold ASC", [event.id], (err, rewards) => {
                 db.all(`SELECT u.name, ep.points FROM event_points ep JOIN users u ON ep.user_id = u.id WHERE ep.event_id = ? ORDER BY ep.points DESC LIMIT 5`, [event.id], (err, ranking) => {
                     const rankingWithIndex = ranking.map((r, i) => ({ rank: i + 1, name: r.name, points: r.points }));
+                    
+                    // FIX: Mapping snake_case DB columns to camelCase for Frontend
+                    const mappedRewards = rewards.map(r => ({
+                        pointThreshold: r.point_threshold,
+                        rewardName: r.reward_name,
+                        rewardAmount: r.reward_amount,
+                        claimed: userPoints >= r.point_threshold
+                    }));
+
                     res.json({
                         id: event.id, name: event.name, description: event.description, banner: event.banner,
                         startTime: event.start_time, endTime: event.end_time, isActive: true, userPoints,
-                        rewards: rewards.map(r => ({ ...r, claimed: userPoints >= r.point_threshold })),
+                        rewards: mappedRewards,
                         ranking: rankingWithIndex
                     });
                 });
