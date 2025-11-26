@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { UserState, Idol, EventData, Chapter, DialogLine, UserSprite } from '../types';
 
-const API_URL = 'http://localhost:3001/api';
+const API_URL = '/api';
 
 const INITIAL_USER: UserState = {
   id: 0,
@@ -27,7 +27,6 @@ export const useGameEngine = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Auth
   const login = async (u: string, p: string) => {
     try {
         const res = await fetch(`${API_URL}/auth/login`, {
@@ -78,7 +77,6 @@ export const useGameEngine = () => {
       const idolsData = await idolsRes.json();
       setIdols(idolsData);
       
-      // Fetch Active Event
       const eventRes = await fetch(`${API_URL}/event/active/${userId}`);
       const eventData = await eventRes.json();
       if (eventData.isActive) {
@@ -86,7 +84,6 @@ export const useGameEngine = () => {
       } else {
           setEvent(null);
       }
-
       setError(null);
     } catch (e: any) {
       console.error("Fetch error", e);
@@ -104,10 +101,8 @@ export const useGameEngine = () => {
     }
   }, [fetchData, userId]);
 
-  // Actions
   const useItem = async (itemName: 'staminaDrink' | 'trainerTicket') => {
     if (!userId) return;
-    if (itemName !== 'staminaDrink') return false;
     try {
         const res = await fetch(`${API_URL}/item/use`, {
             method: 'POST',
@@ -199,7 +194,6 @@ export const useGameEngine = () => {
     return false;
   };
 
-  // Event Work
   const doEventWork = async (staminaCost: number) => {
       if (!userId || !event) return;
       try {
@@ -210,7 +204,7 @@ export const useGameEngine = () => {
           });
           const data = await res.json();
           if (data.success) {
-              fetchData(); // Sync Points
+              fetchData();
               return data;
           } else {
               alert(data.error);
@@ -219,7 +213,6 @@ export const useGameEngine = () => {
       return null;
   };
 
-  // Commu
   const fetchChapters = async (type: string) => {
       if (type === 'FANMADE') {
           const res = await fetch(`${API_URL}/fan/chapters`);
@@ -237,7 +230,6 @@ export const useGameEngine = () => {
       return await res.json();
   };
 
-  // Fanmade Creator
   const saveFanmadeStory = async (title: string, dialogs: DialogLine[]) => {
       if (!userId) return false;
       try {
@@ -254,7 +246,6 @@ export const useGameEngine = () => {
       }
   };
 
-  // Custom Sprites
   const uploadSprite = async (name: string, base64Image: string) => {
       if (!userId) return false;
       try {
@@ -282,25 +273,8 @@ export const useGameEngine = () => {
   };
 
   return {
-    userId,
-    user,
-    idols,
-    event,
-    loading,
-    error,
-    login,
-    register,
-    logout,
-    useItem,
-    pullGacha,
-    retireIdols,
-    trainIdol,
-    buyItem,
-    doEventWork,
-    fetchChapters,
-    fetchDialogs,
-    saveFanmadeStory,
-    uploadSprite,
-    fetchUserSprites
+    userId, user, idols, event, loading, error,
+    login, register, logout, useItem, pullGacha, retireIdols, trainIdol, buyItem, doEventWork,
+    fetchChapters, fetchDialogs, saveFanmadeStory, uploadSprite, fetchUserSprites
   };
 };

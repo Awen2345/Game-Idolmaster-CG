@@ -21,8 +21,6 @@ const StoryReader: React.FC<StoryReaderProps> = ({ chapter, onClose }) => {
     }
   };
 
-  // Determine Sprite URL
-  // Priority: 1. Custom Uploaded Sprite, 2. Local File, 3. Placeholder
   let spriteUrl = '';
   if (currentLine?.customSpriteUrl) {
       spriteUrl = currentLine.customSpriteUrl;
@@ -30,7 +28,6 @@ const StoryReader: React.FC<StoryReaderProps> = ({ chapter, onClose }) => {
       spriteUrl = `http://localhost:3001/assets/sprites/${currentLine?.speaker}/${currentLine?.expression || 'neutral'}.png`;
   }
   
-  // Fallback URL using picsum if local sprite missing and no custom sprite
   const fallbackUrl = `https://picsum.photos/seed/${currentLine?.speaker}/400/600`;
 
   const handleImageError = (e: any) => {
@@ -54,7 +51,6 @@ const StoryReader: React.FC<StoryReaderProps> = ({ chapter, onClose }) => {
       className="absolute inset-0 z-40 bg-[url('https://picsum.photos/seed/bg_school/800/600')] bg-cover bg-center flex flex-col justify-end pb-4"
       onClick={next}
     >
-        {/* Character Sprite */}
         <div className="absolute bottom-32 left-1/2 transform -translate-x-1/2 w-80 h-[500px] transition-all duration-300 pointer-events-none">
              {currentLine.speaker !== 'Producer' && (
                  <img 
@@ -69,7 +65,6 @@ const StoryReader: React.FC<StoryReaderProps> = ({ chapter, onClose }) => {
              )}
         </div>
 
-        {/* Dialog Box */}
         <div className="mx-4 bg-black/80 border-2 border-white/20 rounded-xl p-4 min-h-[150px] relative backdrop-blur-sm cursor-pointer hover:bg-black/90 transition-colors">
             <div className="absolute -top-4 left-4 bg-pink-600 px-4 py-1 rounded-t-lg font-bold text-sm border-t border-x border-pink-400 shadow-lg">
                 {currentLine.speaker}
@@ -80,7 +75,6 @@ const StoryReader: React.FC<StoryReaderProps> = ({ chapter, onClose }) => {
             </div>
         </div>
 
-        {/* Skip Button */}
         <button 
             onClick={(e) => { e.stopPropagation(); onClose(); }}
             className="absolute top-4 right-4 bg-gray-800/80 px-3 py-1 rounded text-xs font-bold border border-white/20"

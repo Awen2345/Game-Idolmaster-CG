@@ -52,7 +52,7 @@ export interface DialogLine {
   speaker: string;
   text: string;
   expression?: 'neutral' | 'happy' | 'angry' | 'surprised' | string;
-  customSpriteUrl?: string; // New field for custom uploaded sprites
+  customSpriteUrl?: string; // URL/Base64 for custom character art
 }
 
 export interface Chapter {
@@ -71,7 +71,7 @@ export interface FanChapter extends Chapter {
 export interface UserSprite {
   id: number;
   name: string;
-  url: string; // Base64 or URL
+  url: string; // Base64
 }
 
 export interface EventData {

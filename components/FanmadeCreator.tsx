@@ -16,7 +16,6 @@ const FanmadeCreator: React.FC<FanmadeCreatorProps> = ({ onSave, onCancel }) => 
   const [lines, setLines] = useState<DialogLine[]>([{ speaker: 'Producer', text: 'Hello!', expression: 'neutral' }]);
   const [saving, setSaving] = useState(false);
   
-  // Asset Management
   const [userSprites, setUserSprites] = useState<UserSprite[]>([]);
   const [uploadName, setUploadName] = useState('');
   const [uploadFile, setUploadFile] = useState<File | null>(null);
@@ -47,8 +46,6 @@ const FanmadeCreator: React.FC<FanmadeCreatorProps> = ({ onSave, onCancel }) => 
           const matchedAsset = userSprites.find(s => s.name.toLowerCase() === value.toLowerCase());
           if (matchedAsset) {
               line.customSpriteUrl = matchedAsset.url;
-              // Reset expression if custom sprite is used as we often upload specific poses as 'characters'
-              // Or keep it if you want to support both. For now, assume custom sprite overrides expression logic.
           } else {
               delete line.customSpriteUrl;
           }
@@ -128,7 +125,7 @@ const FanmadeCreator: React.FC<FanmadeCreatorProps> = ({ onSave, onCancel }) => 
                         value={line.expression} 
                         onChange={e => updateLine(idx, 'expression', e.target.value)}
                         className="bg-gray-800 rounded p-1 text-sm border border-gray-600"
-                        disabled={!!line.customSpriteUrl} // Disable expression if custom sprite used
+                        disabled={!!line.customSpriteUrl} 
                     >
                         <option value="neutral">Neutral</option>
                         <option value="happy">Happy</option>

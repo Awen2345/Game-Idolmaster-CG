@@ -14,7 +14,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
 const MAX_STAMINA_BASE = 50;
 
 db.serialize(() => {
-  // 1. Users Table (Updated for Auth)
+  // 1. Users Table
   db.run(`CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE,
@@ -90,8 +90,8 @@ db.serialize(() => {
   // 8. Story Chapters
   db.run(`CREATE TABLE IF NOT EXISTS chapters (
     id TEXT PRIMARY KEY,
-    type TEXT, -- STORY, EVENT, IDOL, EXTRA
-    parent_id TEXT, -- e.g., 'uzuki' or 'evt_001'
+    type TEXT,
+    parent_id TEXT,
     title TEXT,
     sort_order INTEGER
   )`);
@@ -114,8 +114,7 @@ db.serialize(() => {
     created_at INTEGER
   )`);
 
-  // 11. Fanmade Dialogs (Updated to include custom_sprite_url)
-  // Attempt to create. If it exists, we might need to alter it in a real scenario, but for this demo, we assume fresh or compatible DB.
+  // 11. Fanmade Dialogs
   db.run(`CREATE TABLE IF NOT EXISTS fan_dialogs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     chapter_id INTEGER,
@@ -127,9 +126,9 @@ db.serialize(() => {
     FOREIGN KEY(chapter_id) REFERENCES fan_chapters(id)
   )`);
   
-  // Try to add column if it doesn't exist (Migration hack for persistent sqlite)
+  // Migration for existing DB
   db.run("ALTER TABLE fan_dialogs ADD COLUMN custom_sprite_url TEXT", (err) => {
-      // Ignore error if column exists
+      // Ignore if exists
   });
 
   // 12. User Custom Sprites
@@ -137,65 +136,26 @@ db.serialize(() => {
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER,
     name TEXT,
-    url TEXT -- Base64 encoded image string or URL
+    url TEXT
   )`);
 
   // --- SEED DATA ---
-
-  // Seed Event
   db.get("SELECT id FROM events WHERE id = 'evt_live_groove'", (err, row) => {
     if (!row) {
         console.log("Seeding Event...");
         const now = Date.now();
         const oneWeek = 604800000;
         db.run(`INSERT INTO events VALUES ('evt_live_groove', 'Live Groove: Visual Burst', 'Play lives to earn points and unlock rewards!', 'https://picsum.photos/seed/event_banner/600/200', ${now - 10000}, ${now + oneWeek})`);
-        
-        // Rewards
         db.run(`INSERT INTO event_rewards_def (event_id, point_threshold, reward_name, reward_amount) VALUES ('evt_live_groove', 100, '50 Star Jewels', 50)`);
         db.run(`INSERT INTO event_rewards_def (event_id, point_threshold, reward_name, reward_amount) VALUES ('evt_live_groove', 500, 'Stamina Drink', 1)`);
-        db.run(`INSERT INTO event_rewards_def (event_id, point_threshold, reward_name, reward_amount) VALUES ('evt_live_groove', 1000, 'SR Ticket', 1)`);
-        db.run(`INSERT INTO event_rewards_def (event_id, point_threshold, reward_name, reward_amount) VALUES ('evt_live_groove', 2000, 'Event SR Card', 1)`);
     }
   });
 
-  // Seed Chapters & Dialogs
-  db.get("SELECT id FROM chapters WHERE id = 'main_1_1'", (err, row) => {
-    if (!row) {
-        console.log("Seeding Stories...");
-        // Main Story
-        db.run(`INSERT INTO chapters VALUES ('main_1_1', 'STORY', NULL, 'Chapter 1: The Beginning', 1)`);
-        db.run(`INSERT INTO dialogs (chapter_id, speaker, text, expression, sort_order) VALUES 
-            ('main_1_1', 'Producer', 'Welcome to 346 Production!', 'neutral', 1),
-            ('main_1_1', 'Uzuki', 'I will do my best! Ganbarimasu!', 'happy', 2)
-        `);
-
-        // Event Story
-        db.run(`INSERT INTO chapters VALUES ('evt_lg_1', 'EVENT', 'evt_live_groove', 'Opening: The Groove Begins', 1)`);
-        db.run(`INSERT INTO dialogs (chapter_id, speaker, text, expression, sort_order) VALUES 
-            ('evt_lg_1', 'Mika', 'Hey Producer! The Live Groove is starting soon.', 'happy', 1),
-            ('evt_lg_1', 'Rin', 'Are we ready for this?', 'neutral', 2)
-        `);
-
-        // Idol Story
-        db.run(`INSERT INTO chapters VALUES ('idol_uzuki_1', 'IDOL', 'uzuki', 'Uzuki: Smile Magic', 1)`);
-        db.run(`INSERT INTO dialogs (chapter_id, speaker, text, expression, sort_order) VALUES 
-            ('idol_uzuki_1', 'Uzuki', 'Producer-san, do you like flowers?', 'happy', 1)
-        `);
-    }
-  });
-
-  // Seed Templates (Idols)
+  // Seed Templates
   const templates = [
     { id: 'uzuki_ssr', name: "Uzuki S.", rarity: 'SSR', level: 1, maxLevel: 90, image: "https://picsum.photos/seed/uzuki/300/400", vocal: 50, dance: 40, visual: 60 },
     { id: 'rin_ssr', name: "Rin S.", rarity: 'SSR', level: 1, maxLevel: 90, image: "https://picsum.photos/seed/rin/300/400", vocal: 45, dance: 45, visual: 65 },
     { id: 'mio_ssr', name: "Mio H.", rarity: 'SSR', level: 1, maxLevel: 90, image: "https://picsum.photos/seed/mio/300/400", vocal: 60, dance: 40, visual: 40 },
-    { id: 'kaede_sr', name: "Kaede T.", rarity: 'SR', level: 1, maxLevel: 70, image: "https://picsum.photos/seed/kaede/300/400", vocal: 40, dance: 30, visual: 50 },
-    { id: 'mika_sr', name: "Mika J.", rarity: 'SR', level: 1, maxLevel: 70, image: "https://picsum.photos/seed/mika/300/400", vocal: 45, dance: 35, visual: 45 },
-    { id: 'anzu_r', name: "Anzu F.", rarity: 'R', level: 1, maxLevel: 40, image: "https://picsum.photos/seed/anzu/300/400", vocal: 20, dance: 20, visual: 20 },
-    { id: 'kirari_r', name: "Kirari M.", rarity: 'R', level: 1, maxLevel: 40, image: "https://picsum.photos/seed/kirari/300/400", vocal: 25, dance: 25, visual: 15 },
-    { id: 'ranko_n', name: "Ranko K.", rarity: 'N', level: 1, maxLevel: 20, image: "https://picsum.photos/seed/ranko/300/400", vocal: 10, dance: 10, visual: 10 },
-    { id: 'miku_n', name: "Miku M.", rarity: 'N', level: 1, maxLevel: 20, image: "https://picsum.photos/seed/miku/300/400", vocal: 10, dance: 12, visual: 8 },
-    { id: 'riina_n', name: "Riina T.", rarity: 'N', level: 1, maxLevel: 20, image: "https://picsum.photos/seed/riina/300/400", vocal: 11, dance: 9, visual: 10 },
   ];
 
   templates.forEach(t => {
@@ -203,7 +163,6 @@ db.serialize(() => {
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, 
             [t.id, t.name, t.rarity, t.maxLevel, t.image, t.vocal, t.dance, t.visual]);
   });
-
 });
 
 module.exports = db;
