@@ -26,13 +26,18 @@ const LiveBattle: React.FC<LiveBattleProps> = ({ userId, userDeckIds, allIdols, 
 
   useEffect(() => {
     // Hydrate deck from props. This runs whenever App.tsx updates userDeckIds
-    const hydrated = userDeckIds.map(id => allIdols.find(i => i.id === id)).filter(Boolean) as Idol[];
+    if (!userDeckIds || !allIdols) return;
+    
+    const hydrated = userDeckIds
+        .map(id => allIdols.find(i => i.id === id))
+        .filter((i): i is Idol => !!i); // Type guard filter(Boolean)
+        
     setPlayerDeck(hydrated);
   }, [userDeckIds, allIdols]);
 
   const handleStartBattle = async (mode: 'BOT' | 'PVP') => {
       if (playerDeck.length < 4) {
-          alert("Please set up a full deck of 4 idols first!");
+          alert("Your deck is incomplete! Please select 4 idols.");
           setPhase('DECK');
           return;
       }
@@ -43,7 +48,7 @@ const LiveBattle: React.FC<LiveBattleProps> = ({ userId, userDeckIds, allIdols, 
           setTimeout(() => setPhase('VS'), 1500); // Simulate finding time
       } else {
           setPhase('MENU');
-          alert("Could not find opponent.");
+          alert("Could not find opponent. Please try again.");
       }
   };
 
@@ -52,12 +57,6 @@ const LiveBattle: React.FC<LiveBattleProps> = ({ userId, userDeckIds, allIdols, 
       setTurn(0);
       setPlayerScore(0);
       setEnemyScore(0);
-      
-      // Sequence: 
-      // T=1s: Card 1
-      // T=2s: Card 2
-      // ...
-      // T=5s: Result
       
       let pScore = 0;
       let eScore = 0;
@@ -82,8 +81,14 @@ const LiveBattle: React.FC<LiveBattleProps> = ({ userId, userDeckIds, allIdols, 
       setTimeout(async () => {
           const won = pScore > eScore;
           const res = await onCompleteBattle(won);
-          setBattleResult(res);
-          setPhase('RESULT');
+          if (res) {
+            setBattleResult(res);
+            setPhase('RESULT');
+          } else {
+            // Fallback if network error
+            setBattleResult({ won, playerScore: pScore, opponentScore: eScore, rewards: { exp: 0, money: 0, jewels: 0 } });
+            setPhase('RESULT');
+          }
       }, 6000);
   };
 
@@ -142,7 +147,7 @@ const LiveBattle: React.FC<LiveBattleProps> = ({ userId, userDeckIds, allIdols, 
       return (
           <div className="absolute inset-0 z-50 bg-gray-900 overflow-hidden flex flex-col">
               {/* Background Arena */}
-              <div className="absolute inset-0 bg-[url('https://picsum.photos/seed/arena/800/1200')] bg-cover opacity-30"></div>
+              <div className="absolute inset-0 bg-[url('https://picsum.photos/seed/stadium/800/1200')] bg-cover opacity-30"></div>
               
               {/* Scores Header */}
               <div className="relative z-20 flex justify-between p-4 bg-gradient-to-b from-black/80 to-transparent">
@@ -162,7 +167,9 @@ const LiveBattle: React.FC<LiveBattleProps> = ({ userId, userDeckIds, allIdols, 
                       ))}
                   </div>
 
-                  <div className="h-0.5 bg-white/20 w-full my-2"></div>
+                  <div className="h-0.5 bg-white/20 w-full my-2 flex items-center justify-center">
+                       <span className="bg-black/50 px-2 text-[10px] text-white">BATTLE START</span>
+                  </div>
 
                   {/* Player Side */}
                   <div className="flex justify-center gap-2">
@@ -222,7 +229,7 @@ const LiveBattle: React.FC<LiveBattleProps> = ({ userId, userDeckIds, allIdols, 
 
         <div className="relative z-10 p-4 flex justify-between items-center">
              <h2 className="text-2xl font-black italic text-white drop-shadow-md"><i className="fas fa-fist-raised text-red-500 mr-2"></i> LIVE ARENA</h2>
-             <button onClick={onClose} className="text-white/80 hover:text-white"><i className="fas fa-times text-xl"></i></button>
+             <button onClick={onClose} className="text-white/80 hover:text-white bg-black/30 rounded-full w-8 h-8 flex items-center justify-center"><i className="fas fa-times"></i></button>
         </div>
 
         <div className="relative z-10 flex-1 flex flex-col items-center justify-center gap-6 p-6">
