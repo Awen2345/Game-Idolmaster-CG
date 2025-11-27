@@ -2,6 +2,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 const db = require('./db');
 
 const app = express();
@@ -17,6 +18,18 @@ app.use('/assets/music', express.static(path.join(__dirname, '../public/music'))
 app.use('/assets/covers', express.static(path.join(__dirname, '../public/covers')));
 
 const STAMINA_REGEN_MS = 60000;
+const CONFIG_PATH = path.join(__dirname, 'game_config.json');
+
+// --- HELPER TO READ CONFIG ---
+const getGameConfig = () => {
+    try {
+        const data = fs.readFileSync(CONFIG_PATH, 'utf8');
+        return JSON.parse(data);
+    } catch (e) {
+        console.error("Failed to load game config", e);
+        return { chapters: [], promoCodes: [] };
+    }
+};
 
 const recalcStamina = (user) => {
   if (user.stamina >= user.maxStamina) return user;
@@ -140,21 +153,59 @@ app.post('/api/event/work', (req, res) => {
     });
 });
 
+// --- REFACTORED COMMU / STORIES (JSON BASED) ---
+
 app.get('/api/commu/chapters', (req, res) => {
-    const { type } = req.query;
-    let sql = "SELECT * FROM chapters";
-    const params = [];
-    if (type) { sql += " WHERE type = ?"; params.push(type); }
-    sql += " ORDER BY sort_order ASC";
-    db.all(sql, params, (err, rows) => {
+    const { type, userId } = req.query; // Add userId to check read status
+    const config = getGameConfig();
+    
+    // Filter from JSON
+    let chapters = config.chapters || [];
+    if (type) {
+        chapters = chapters.filter(c => c.type === type);
+    }
+    
+    // If no userId provided, return just chapters
+    if (!userId) {
+        return res.json(chapters.map(c => ({ ...c, isRead: false })));
+    }
+
+    // Check Read Status from DB
+    db.all("SELECT chapter_id FROM user_read_chapters WHERE user_id = ?", [userId], (err, readRows) => {
         if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
+        const readIds = new Set(readRows.map(r => r.chapter_id));
+        
+        const response = chapters.map(c => ({
+            ...c,
+            isRead: readIds.has(c.id)
+        }));
+        res.json(response);
     });
 });
 
 app.get('/api/commu/dialogs/:chapterId', (req, res) => {
-    db.all("SELECT * FROM dialogs WHERE chapter_id = ? ORDER BY sort_order ASC", [req.params.chapterId], (err, rows) => { res.json(rows); });
+    const config = getGameConfig();
+    const chapter = config.chapters.find(c => c.id === req.params.chapterId);
+    
+    if (chapter && chapter.dialogs) {
+        res.json(chapter.dialogs);
+    } else {
+        // Fallback to legacy DB for old compatibility if needed, or return empty
+        db.all("SELECT * FROM dialogs WHERE chapter_id = ? ORDER BY sort_order ASC", [req.params.chapterId], (err, rows) => { 
+            res.json(rows || []); 
+        });
+    }
 });
+
+app.post('/api/commu/read', (req, res) => {
+    const { userId, chapterId } = req.body;
+    db.run("INSERT OR IGNORE INTO user_read_chapters (user_id, chapter_id, read_at) VALUES (?, ?, ?)", [userId, chapterId, Date.now()], (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true });
+    });
+});
+
+// --- FANMADE STORIES ---
 
 app.get('/api/fan/chapters', (req, res) => {
     const sql = `SELECT fc.*, u.username as authorName FROM fan_chapters fc LEFT JOIN users u ON fc.user_id = u.id ORDER BY fc.created_at DESC`;
@@ -267,37 +318,42 @@ app.post('/api/idol/retire', (req, res) => {
   });
 });
 
+// --- REFACTORED PROMO CODE (JSON BASED) ---
+
 app.post('/api/promo/redeem', (req, res) => {
     const { userId, code } = req.body;
     const now = Date.now();
-    db.get("SELECT * FROM promo_codes WHERE code = ?", [code], (err, promo) => {
-        if (!promo) return res.json({ success: false, error: "Invalid Code" });
-        
-        if (now < promo.start_time) return res.json({ success: false, error: "Code not yet active" });
-        if (now > promo.end_time) return res.json({ success: false, error: "Code expired" });
+    const config = getGameConfig();
+    
+    // 1. Find in JSON
+    const promo = config.promoCodes.find(p => p.code === code);
+    
+    if (!promo) return res.json({ success: false, error: "Invalid Code" });
+    if (now < promo.startTime) return res.json({ success: false, error: "Code not yet active" });
+    if (now > promo.endTime) return res.json({ success: false, error: "Code expired" });
 
-        db.get("SELECT * FROM promo_usage WHERE user_id = ? AND code = ?", [userId, code], (err, usage) => {
-            if (usage) return res.json({ success: false, error: "You already used this code" });
+    // 2. Check Usage in DB
+    db.get("SELECT * FROM promo_usage WHERE user_id = ? AND code = ?", [userId, code], (err, usage) => {
+        if (usage) return res.json({ success: false, error: "You already used this code" });
 
-            // If Unique code, check if ANYONE has used it
-            if (promo.type === 'UNIQUE') {
-                db.get("SELECT * FROM promo_usage WHERE code = ?", [code], (err, anyUsage) => {
-                    if (anyUsage) return res.json({ success: false, error: "Code already claimed by someone else" });
-                    applyReward();
-                });
-            } else {
+        // If Unique code, check if ANYONE has used it
+        if (promo.type === 'UNIQUE') {
+            db.get("SELECT * FROM promo_usage WHERE code = ?", [code], (err, anyUsage) => {
+                if (anyUsage) return res.json({ success: false, error: "Code already claimed by someone else" });
                 applyReward();
-            }
+            });
+        } else {
+            applyReward();
+        }
 
-            function applyReward() {
-                 db.run("INSERT INTO promo_usage (user_id, code, used_at) VALUES (?, ?, ?)", [userId, code, now]);
-                 
-                 db.run("INSERT INTO presents (user_id, type, amount, description, received_at) VALUES (?, ?, ?, ?, ?)", 
-                    [userId, promo.reward_type, promo.reward_amount, `Promo: ${code}`, now]);
+        function applyReward() {
+             db.run("INSERT INTO promo_usage (user_id, code, used_at) VALUES (?, ?, ?)", [userId, code, now]);
+             
+             db.run("INSERT INTO presents (user_id, type, amount, description, received_at) VALUES (?, ?, ?, ?, ?)", 
+                [userId, promo.rewardType, promo.rewardAmount, `Promo: ${code}`, now]);
 
-                 res.json({ success: true, message: "Reward sent to Present Box!" });
-            }
-        });
+             res.json({ success: true, message: "Reward sent to Present Box!" });
+        }
     });
 });
 
@@ -326,8 +382,8 @@ app.post('/api/user/:id/presents/claim', (req, res) => {
             db.run("UPDATE users SET money = money + ? WHERE id = ?", [present.amount, userId]);
         } else if (present.type === 'JEWEL') {
             db.run("UPDATE users SET starJewels = starJewels + ? WHERE id = ?", [present.amount, userId]);
-        } else if (present.type === 'ITEM' || present.type === 'ITEM_STAMINA') {
-            const itemName = 'staminaDrink';
+        } else if (present.type.includes('ITEM')) {
+            const itemName = 'staminaDrink'; // Simplified for demo, could be based on type map
              db.get("SELECT count FROM user_items WHERE user_id = ? AND item_name = ?", [userId, itemName], (err, iRow) => {
                 if (iRow) db.run("UPDATE user_items SET count = count + ? WHERE user_id = ? AND item_name = ?", [present.amount, userId, itemName]);
                 else db.run("INSERT INTO user_items VALUES (?, ?, ?)", [userId, itemName, present.amount]);

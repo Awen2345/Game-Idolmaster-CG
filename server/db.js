@@ -87,7 +87,7 @@ db.serialize(() => {
     reward_amount INTEGER
   )`);
 
-  // 8. Story Chapters
+  // 8. Story Chapters (Legacy - now mostly used for ID tracking if needed, primarily config.json)
   db.run(`CREATE TABLE IF NOT EXISTS chapters (
     id TEXT PRIMARY KEY,
     type TEXT,
@@ -96,7 +96,7 @@ db.serialize(() => {
     sort_order INTEGER
   )`);
 
-  // 9. Dialogs
+  // 9. Dialogs (Legacy)
   db.run(`CREATE TABLE IF NOT EXISTS dialogs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     chapter_id TEXT,
@@ -139,17 +139,18 @@ db.serialize(() => {
     url TEXT
   )`);
 
-  // 13. Promo Codes
+  // 13. Promo Codes (Legacy Table - Config now in JSON)
+  // We keep the table for structure, but usage logic checks JSON first.
   db.run(`CREATE TABLE IF NOT EXISTS promo_codes (
     code TEXT PRIMARY KEY,
-    type TEXT, -- 'PUBLIC' or 'UNIQUE'
-    reward_type TEXT, -- 'JEWEL', 'MONEY', 'ITEM'
+    type TEXT,
+    reward_type TEXT,
     reward_amount INTEGER,
     start_time INTEGER,
     end_time INTEGER
   )`);
 
-  // 14. Promo Usage
+  // 14. Promo Usage (Critical for tracking who used JSON codes)
   db.run(`CREATE TABLE IF NOT EXISTS promo_usage (
     user_id INTEGER,
     code TEXT,
@@ -176,6 +177,14 @@ db.serialize(() => {
     banner_url TEXT
   )`);
 
+  // 17. NEW: User Read Chapters (To track progress on JSON stories)
+  db.run(`CREATE TABLE IF NOT EXISTS user_read_chapters (
+    user_id INTEGER,
+    chapter_id TEXT,
+    read_at INTEGER,
+    PRIMARY KEY (user_id, chapter_id)
+  )`);
+
   // --- SEED DATA ---
   
   // Seed Event
@@ -189,20 +198,8 @@ db.serialize(() => {
     }
   });
 
-  // Seed Promo Codes
-  const now = Date.now();
-  // Valid Public Code (Multi-user, single use per user)
-  db.run(`INSERT OR IGNORE INTO promo_codes VALUES ('WELCOME2024', 'PUBLIC', 'JEWEL', 2500, 0, 9999999999999)`);
-  // Valid Item Code
-  db.run(`INSERT OR IGNORE INTO promo_codes VALUES ('STARTERPACK', 'PUBLIC', 'ITEM', 5, 0, 9999999999999)`);
-  // Unique Code (Global single use)
-  db.run(`INSERT OR IGNORE INTO promo_codes VALUES ('UNIQUE123', 'UNIQUE', 'MONEY', 50000, 0, 9999999999999)`);
-  // Expired Code
-  db.run(`INSERT OR IGNORE INTO promo_codes VALUES ('OLD2023', 'PUBLIC', 'JEWEL', 100, 0, ${now - 10000})`);
-  // Future Code
-  db.run(`INSERT OR IGNORE INTO promo_codes VALUES ('FUTURE', 'PUBLIC', 'JEWEL', 5000, ${now + 86400000}, 9999999999999)`);
-
   // Seed Announcements
+  const now = Date.now();
   db.get("SELECT id FROM announcements", (err, row) => {
       if(!row) {
           db.run("INSERT INTO announcements (title, content, date, banner_url) VALUES (?, ?, ?, ?)", 

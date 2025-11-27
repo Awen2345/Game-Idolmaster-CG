@@ -229,7 +229,8 @@ export const useGameEngine = () => {
           const res = await fetch(`${API_URL}/fan/chapters`);
           return await res.json();
       }
-      const res = await fetch(`${API_URL}/commu/chapters?type=${type}`);
+      // Pass userId to check read status
+      const res = await fetch(`${API_URL}/commu/chapters?type=${type}&userId=${userId}`);
       return await res.json();
   };
 
@@ -239,6 +240,17 @@ export const useGameEngine = () => {
         : `${API_URL}/commu/dialogs/${chapterId}`;
       const res = await fetch(endpoint);
       return await res.json();
+  };
+
+  const markChapterRead = async (chapterId: string) => {
+      if(!userId) return;
+      try {
+        await fetch(`${API_URL}/commu/read`, {
+             method: 'POST',
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify({ userId, chapterId })
+        });
+      } catch (e) { console.error(e); }
   };
 
   const saveFanmadeStory = async (title: string, dialogs: DialogLine[]) => {
@@ -323,7 +335,7 @@ export const useGameEngine = () => {
   return {
     userId, user, idols, event, loading, error, presents, announcements,
     login, register, logout, useItem, pullGacha, retireIdols, trainIdol, buyItem, doEventWork,
-    fetchChapters, fetchDialogs, saveFanmadeStory, uploadSprite, fetchUserSprites, redeemPromoCode,
+    fetchChapters, fetchDialogs, markChapterRead, saveFanmadeStory, uploadSprite, fetchUserSprites, redeemPromoCode,
     claimPresent
   };
 };

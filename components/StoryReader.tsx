@@ -5,9 +5,10 @@ import { Chapter } from '../types';
 interface StoryReaderProps {
   chapter: Chapter;
   onClose: () => void;
+  onFinish?: (chapterId: string) => void;
 }
 
-const StoryReader: React.FC<StoryReaderProps> = ({ chapter, onClose }) => {
+const StoryReader: React.FC<StoryReaderProps> = ({ chapter, onClose, onFinish }) => {
   const [index, setIndex] = useState(0);
 
   const currentLine = chapter.dialogs![index];
@@ -17,6 +18,7 @@ const StoryReader: React.FC<StoryReaderProps> = ({ chapter, onClose }) => {
     if (index < chapter.dialogs!.length) {
       setIndex(index + 1);
     } else {
+      if (onFinish) onFinish(chapter.id);
       onClose();
     }
   };
@@ -41,8 +43,8 @@ const StoryReader: React.FC<StoryReaderProps> = ({ chapter, onClose }) => {
     return (
       <div className="absolute inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-8 animate-fade-in">
         <h2 className="text-3xl text-white font-bold mb-4">CLEAR!</h2>
-        <div className="text-yellow-400 mb-8"><i className="fas fa-star"></i> 50 Jewels Received</div>
-        <button onClick={onClose} className="bg-pink-600 px-6 py-2 rounded-full font-bold">Return to Menu</button>
+        <div className="text-yellow-400 mb-8"><i className="fas fa-star"></i> Story Completed</div>
+        <button onClick={() => { if(onFinish) onFinish(chapter.id); onClose(); }} className="bg-pink-600 px-6 py-2 rounded-full font-bold">Return to Menu</button>
       </div>
     );
   }
@@ -77,7 +79,7 @@ const StoryReader: React.FC<StoryReaderProps> = ({ chapter, onClose }) => {
         </div>
 
         <button 
-            onClick={(e) => { e.stopPropagation(); onClose(); }}
+            onClick={(e) => { e.stopPropagation(); if(onFinish) onFinish(chapter.id); onClose(); }}
             className="absolute top-4 right-4 bg-gray-800/80 px-3 py-1 rounded text-xs font-bold border border-white/20"
         >
             SKIP <i className="fas fa-forward"></i>

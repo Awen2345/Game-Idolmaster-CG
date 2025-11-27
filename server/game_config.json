@@ -1,0 +1,100 @@
+{
+  "promoCodes": [
+    {
+      "code": "WELCOME2024",
+      "type": "PUBLIC",
+      "rewardType": "JEWEL",
+      "rewardAmount": 2500,
+      "startTime": 0,
+      "endTime": 9999999999999
+    },
+    {
+      "code": "STARTERPACK",
+      "type": "PUBLIC",
+      "rewardType": "ITEM_STAMINA",
+      "rewardAmount": 5,
+      "startTime": 0,
+      "endTime": 9999999999999
+    },
+    {
+      "code": "MONEYBAG",
+      "type": "PUBLIC",
+      "rewardType": "MONEY",
+      "rewardAmount": 50000,
+      "startTime": 0,
+      "endTime": 9999999999999
+    },
+    {
+      "code": "SECRET",
+      "type": "UNIQUE",
+      "rewardType": "JEWEL",
+      "rewardAmount": 5000,
+      "startTime": 0,
+      "endTime": 9999999999999
+    }
+  ],
+  "chapters": [
+    {
+      "id": "main_1_1",
+      "title": "Chapter 1: The Beginning",
+      "type": "STORY",
+      "sortOrder": 1,
+      "dialogs": [
+        { "speaker": "Producer", "text": "Welcome to the production agency!", "expression": "neutral" },
+        { "speaker": "Uzuki", "text": "I will do my best! Ganbarimasu!", "expression": "happy" },
+        { "speaker": "Rin", "text": "Is this really going to work?", "expression": "neutral" },
+        { "speaker": "Mio", "text": "Let's make it work! Fried Chicken!", "expression": "happy" }
+      ]
+    },
+    {
+      "id": "main_1_2",
+      "title": "Chapter 2: First Lesson",
+      "type": "STORY",
+      "sortOrder": 2,
+      "dialogs": [
+        { "speaker": "Trainer", "text": "One, two, three, four!", "expression": "neutral" },
+        { "speaker": "Rin", "text": "This is harder than it looks.", "expression": "angry" },
+        { "speaker": "Uzuki", "text": "Don't give up, Rin-chan!", "expression": "happy" }
+      ]
+    },
+    {
+      "id": "evt_1_1",
+      "title": "Caravan Start!",
+      "type": "EVENT",
+      "sortOrder": 1,
+      "dialogs": [
+        { "speaker": "Mio", "text": "Let's sell lots of merch!", "expression": "happy" },
+        { "speaker": "Producer", "text": "Remember to smile for the fans.", "expression": "neutral" }
+      ]
+    },
+    {
+      "id": "idol_uzuki_1",
+      "title": "Uzuki: A New Smile",
+      "type": "IDOL",
+      "sortOrder": 1,
+      "dialogs": [
+        { "speaker": "Uzuki", "text": "Producer-san, look at this flower!", "expression": "happy" },
+        { "speaker": "Producer", "text": "It suits you, Uzuki.", "expression": "neutral" }
+      ]
+    },
+    {
+      "id": "idol_rin_1",
+      "title": "Rin: Reluctant Idol",
+      "type": "IDOL",
+      "sortOrder": 2,
+      "dialogs": [
+        { "speaker": "Rin", "text": "Why did you scout me anyway?", "expression": "angry" },
+        { "speaker": "Producer", "text": "Because I saw your spark.", "expression": "neutral" }
+      ]
+    },
+    {
+      "id": "ext_april_1",
+      "title": "April Fools 2024",
+      "type": "EXTRA",
+      "sortOrder": 1,
+      "dialogs": [
+        { "speaker": "Chihiro", "text": "Today, all stamina drinks are soda!", "expression": "happy" }
+      ]
+    }
+  ]
+}

@@ -17,7 +17,7 @@ const App: React.FC = () => {
     userId, user, idols, event, presents, announcements,
     login, register, logout, 
     useItem, pullGacha, retireIdols, trainIdol, buyItem, doEventWork,
-    fetchChapters, fetchDialogs, saveFanmadeStory, uploadSprite, fetchUserSprites, redeemPromoCode, claimPresent,
+    fetchChapters, fetchDialogs, markChapterRead, saveFanmadeStory, uploadSprite, fetchUserSprites, redeemPromoCode, claimPresent,
     error 
   } = useGameEngine();
   
@@ -133,6 +133,7 @@ const App: React.FC = () => {
             <Commu 
                 fetchChapters={fetchChapters}
                 fetchDialogs={fetchDialogs}
+                markChapterRead={markChapterRead}
                 saveFanmadeStory={saveFanmadeStory}
                 uploadSprite={uploadSprite}
                 fetchUserSprites={fetchUserSprites}

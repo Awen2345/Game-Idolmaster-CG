@@ -7,12 +7,13 @@ import FanmadeCreator from './FanmadeCreator';
 interface CommuProps {
     fetchChapters: (type: string) => Promise<Chapter[]>;
     fetchDialogs: (id: string, isFan: boolean) => Promise<DialogLine[]>;
+    markChapterRead: (id: string) => Promise<void>;
     saveFanmadeStory: (title: string, dialogs: DialogLine[]) => Promise<boolean>;
     uploadSprite: (name: string, base64: string) => Promise<boolean>;
     fetchUserSprites: () => Promise<UserSprite[]>;
 }
 
-const Commu: React.FC<CommuProps> = ({ fetchChapters, fetchDialogs, saveFanmadeStory, uploadSprite, fetchUserSprites }) => {
+const Commu: React.FC<CommuProps> = ({ fetchChapters, fetchDialogs, markChapterRead, saveFanmadeStory, uploadSprite, fetchUserSprites }) => {
   // Use props instead of internal hook to maintain shared state with App.tsx
   const [path, setPath] = useState<any[]>([]); 
   const [activeChapter, setActiveChapter] = useState<Chapter | null>(null);
@@ -34,6 +35,15 @@ const Commu: React.FC<CommuProps> = ({ fetchChapters, fetchDialogs, saveFanmadeS
       const dialogs = await fetchDialogs(chapter.id, chapter.type === 'FANMADE');
       setActiveDialogs(dialogs);
       setActiveChapter({...chapter, dialogs});
+  };
+
+  const handleFinishChapter = async (chapterId: string) => {
+      if (path[0]?.type !== CommuType.FANMADE) {
+          await markChapterRead(chapterId);
+          // Refresh list to show "READ" status
+          const data = await fetchChapters(path[0].type);
+          setLoadedChapters(data || []);
+      }
   };
 
   useEffect(() => {
@@ -59,7 +69,13 @@ const Commu: React.FC<CommuProps> = ({ fetchChapters, fetchDialogs, saveFanmadeS
 
   const renderContent = () => {
     if (activeChapter) {
-        return <StoryReader chapter={activeChapter} onClose={() => setActiveChapter(null)} />;
+        return (
+            <StoryReader 
+                chapter={activeChapter} 
+                onClose={() => setActiveChapter(null)} 
+                onFinish={handleFinishChapter}
+            />
+        );
     }
 
     // Level 0: Main Menu
@@ -90,9 +106,12 @@ const Commu: React.FC<CommuProps> = ({ fetchChapters, fetchDialogs, saveFanmadeS
 
             {loadedChapters.length === 0 ? <p className="text-gray-400 text-center">Loading or No Stories...</p> : null}
             {loadedChapters.map(ch => (
-                <div key={ch.id} onClick={() => handleSelectChapter(ch)} className="bg-gray-800 border-l-4 border-pink-500 p-4 rounded shadow hover:bg-gray-750 cursor-pointer flex justify-between items-center transition-transform active:scale-95">
+                <div key={ch.id} onClick={() => handleSelectChapter(ch)} className={`bg-gray-800 border-l-4 ${ch.isRead ? 'border-gray-500 opacity-70' : 'border-pink-500'} p-4 rounded shadow hover:bg-gray-750 cursor-pointer flex justify-between items-center transition-transform active:scale-95`}>
                     <div>
-                        <div className="text-xs text-pink-400 font-bold mb-1">{ch.type}</div>
+                        <div className="flex items-center gap-2 mb-1">
+                            <span className={`text-xs font-bold ${ch.isRead ? 'text-gray-400' : 'text-pink-400'}`}>{ch.type}</span>
+                            {ch.isRead && <span className="bg-gray-600 text-white text-[9px] px-1 rounded">CLEARED</span>}
+                        </div>
                         <h4 className="font-bold text-white">{ch.title}</h4>
                         {(ch as any).authorName && <p className="text-xs text-gray-500">by {(ch as any).authorName}</p>}
                     </div>
