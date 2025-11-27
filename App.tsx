@@ -28,11 +28,14 @@ const App: React.FC = () => {
   const [showNews, setShowNews] = useState(false);
   const [showPromo, setShowPromo] = useState(false);
   const [showBattle, setShowBattle] = useState(false); // Battle State
-  const [userDeckIds, setUserDeckIds] = useState<string[]>([]);
+  const [userDeckIds, setUserDeckIds] = useState<string[]>([]); // Initialize as empty array
 
   useEffect(() => {
       if(showBattle && userId) {
-          fetchDeck().then(setUserDeckIds);
+          fetchDeck().then(ids => {
+             // Handle case if API returns null/undefined
+             setUserDeckIds(ids || []);
+          });
       }
   }, [showBattle, userId, fetchDeck]);
 

@@ -10,186 +10,178 @@ interface DeckBuilderProps {
 }
 
 const DeckBuilder: React.FC<DeckBuilderProps> = ({ idols, currentDeckIds, onSave, onClose }) => {
+  // Slots State: always length 4. Holds ID string or null.
   const [slots, setSlots] = useState<(string | null)[]>([null, null, null, null]);
-  const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Initialize slots
+  // Initialize Slots ONCE
   useEffect(() => {
-    // If user has started editing, do not overwrite with props to prevent resets
-    if (isDirty) return;
-
-    // Validate incoming Deck IDs against the actual Idol Inventory
-    const validSlots = [null, null, null, null] as (string | null)[];
-    
-    if (currentDeckIds && Array.isArray(currentDeckIds)) {
-        currentDeckIds.forEach((deckId, idx) => {
-            if (idx < 4 && deckId) {
-                // Check if this ID actually exists in the provided idols list
-                const exists = idols.some(i => i.id === deckId);
-                validSlots[idx] = exists ? deckId : null;
-            }
+    // If we have incoming deck data from server
+    if (Array.isArray(currentDeckIds) && currentDeckIds.length === 4) {
+        // Validate that these IDs actually exist in user inventory (idols)
+        const validated = currentDeckIds.map(id => {
+            if (!id) return null;
+            const exists = idols.some(i => i.id === id);
+            return exists ? id : null;
         });
+        setSlots(validated);
     }
-    setSlots(validSlots);
-  }, [currentDeckIds, idols, isDirty]);
-
-  const toggleIdol = (idolId: string) => {
-    setIsDirty(true);
-    
-    const existingIndex = slots.findIndex(id => id === idolId);
-    
-    if (existingIndex !== -1) {
-        // Remove
-        const newSlots = [...slots];
-        newSlots[existingIndex] = null;
-        setSlots(newSlots);
-    } else {
-        // Add
-        const emptyIndex = slots.findIndex(id => id === null);
-        if (emptyIndex !== -1) {
-            const newSlots = [...slots];
-            newSlots[emptyIndex] = idolId;
-            setSlots(newSlots);
-        } else {
-            // Deck Full Feedback
-            alert("Deck is full! Tap a slot at the top to remove a card first.");
-        }
-    }
-  };
-
-  const clearSlot = (index: number) => {
-      const newSlots = [...slots];
-      newSlots[index] = null;
-      setSlots(newSlots);
-      setIsDirty(true);
-  };
-
-  const handleSave = async () => {
-      const activeIds = slots.filter(s => s !== null) as string[];
-      if(activeIds.length < 4) {
-          if(!confirm(`Your deck has empty slots (${activeIds.length}/4). Continue?`)) return;
-      }
-      
-      setIsSaving(true);
-      await onSave(activeIds); // Save logic handles padding nulls if needed backend side
-      setIsSaving(false);
-  };
+  }, []); // Only run on mount to prevent overwriting user changes
 
   const getIdol = (id: string | null) => id ? idols.find(i => i.id === id) : null;
 
-  const totalStats = slots.reduce((acc, id) => {
+  // -- LOGIC --
+  
+  const handleSlotClick = (index: number) => {
+      // Clicking a slot removes the card
+      if (slots[index]) {
+          const newSlots = [...slots];
+          newSlots[index] = null;
+          setSlots(newSlots);
+      }
+  };
+
+  const handleListClick = (idolId: string) => {
+      // Check if already in deck
+      const existingIndex = slots.indexOf(idolId);
+
+      if (existingIndex !== -1) {
+          // If in deck -> remove it
+          const newSlots = [...slots];
+          newSlots[existingIndex] = null;
+          setSlots(newSlots);
+      } else {
+          // If not in deck -> find first empty slot
+          const emptyIndex = slots.indexOf(null);
+          if (emptyIndex !== -1) {
+              const newSlots = [...slots];
+              newSlots[emptyIndex] = idolId;
+              setSlots(newSlots);
+          } else {
+              // Deck full
+              alert("Deck is full! Tap a card in the top section to remove it first.");
+          }
+      }
+  };
+
+  const handleSave = async () => {
+      // Allow saving with empty slots (backend handles nulls)
+      setIsSaving(true);
+      
+      // Clean up array for safety (though nulls are fine)
+      // The parent expects string[] but we are sending (string|null)[]
+      // We need to verify if onSave handles nulls. 
+      // Based on server update, it expects 4 items.
+      // We will cast to any to bypass TS strictness if needed, or update interface.
+      // But server uses INSERT OR REPLACE logic so we send explicit nulls.
+      
+      const payload = slots as any as string[]; 
+      await onSave(payload);
+      setIsSaving(false);
+  };
+
+  const totalPower = slots.reduce((acc, id) => {
       const i = getIdol(id);
       return i ? acc + (i.vocal + i.dance + i.visual) : acc;
   }, 0);
 
   return (
-    <div className="absolute inset-0 z-[500] bg-gray-900 flex flex-col h-full animate-fade-in pointer-events-auto">
-        {/* Fixed Header */}
-        <div className="bg-gradient-to-r from-blue-900 to-indigo-900 p-3 shadow-lg flex justify-between items-center shrink-0 z-[510]">
+    <div className="absolute inset-0 z-[500] bg-gray-900 flex flex-col h-full pointer-events-auto animate-fade-in">
+        
+        {/* Header */}
+        <div className="bg-gradient-to-r from-blue-900 to-indigo-900 p-3 shadow-lg flex justify-between items-center shrink-0">
             <div>
-                <h2 className="text-lg font-bold text-white italic">Unit Setup</h2>
-                <p className="text-xs text-blue-300">Total Power: {totalStats}</p>
+                <h2 className="text-white font-bold italic text-lg">Unit Formation</h2>
+                <div className="text-yellow-400 text-xs font-mono font-bold">Total Power: {totalPower}</div>
             </div>
-            {/* Top Close Button for redundancy */}
-            <button 
-                onClick={(e) => { e.stopPropagation(); onClose(); }} 
-                className="bg-red-500/20 text-white p-2 rounded hover:bg-red-500 transition-colors"
-            >
-                <i className="fas fa-times"></i> Close
+            <button onClick={onClose} className="text-gray-300 hover:text-white px-3 py-1 border border-gray-600 rounded bg-gray-800">
+                Cancel
             </button>
         </div>
 
-        {/* Deck Slots Area */}
-        <div className="bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-gray-800 p-4 shrink-0 shadow-md z-[505]">
-            <div className="flex justify-center gap-2">
-                {slots.map((slotId, i) => {
-                    const idol = getIdol(slotId);
+        {/* Deck Slots (Top) */}
+        <div className="bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-gray-800 p-4 shrink-0 shadow-lg z-10">
+            <div className="flex justify-between gap-2 max-w-sm mx-auto">
+                {slots.map((id, idx) => {
+                    const idol = getIdol(id);
                     return (
                         <div 
-                            key={i} 
-                            onClick={(e) => { e.stopPropagation(); clearSlot(i); }}
-                            className="w-20 h-28 bg-gray-900 rounded border-2 border-dashed border-gray-600 flex items-center justify-center relative overflow-hidden shadow-inner cursor-pointer hover:border-red-400 transition-colors group"
+                            key={idx} 
+                            onClick={() => handleSlotClick(idx)}
+                            className={`relative w-20 h-28 rounded border-2 cursor-pointer transition-all ${idol ? 'border-pink-500 bg-gray-900' : 'border-dashed border-gray-600 bg-gray-800/50 hover:bg-gray-700'}`}
                         >
-                            {idol ? (
-                                <>
-                                    <img src={idol.image} className="w-full h-full object-cover pointer-events-none" alt="slot" />
-                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                                        <i className="fas fa-times text-red-400 text-xl font-bold"></i>
+                             {idol ? (
+                                 <>
+                                    <img src={idol.image} className="w-full h-full object-cover rounded-sm" />
+                                    <div className="absolute top-0 right-0 bg-red-500 text-white w-5 h-5 flex items-center justify-center rounded-bl font-bold text-xs shadow-md">
+                                        <i className="fas fa-minus"></i>
                                     </div>
-                                    <div className={`absolute bottom-0 left-0 text-[8px] font-bold px-1 ${idol.rarity === 'SSR' ? 'bg-pink-500 text-white' : 'bg-gray-600 text-gray-200'}`}>
-                                        {idol.rarity}
+                                    <div className="absolute bottom-0 w-full bg-black/70 text-[8px] text-white text-center truncate px-1">
+                                        {idol.name}
                                     </div>
-                                </>
-                            ) : (
-                                <div className="flex flex-col items-center text-gray-600 pointer-events-none">
-                                    <span className="font-bold text-[10px]">Slot {i+1}</span>
-                                    <span className="text-[8px] text-gray-500">Tap to Add</span>
+                                 </>
+                             ) : (
+                                 <div className="flex flex-col items-center justify-center h-full text-gray-500 gap-1">
+                                     <span className="text-xs font-bold opacity-50">{idx + 1}</span>
+                                     <i className="fas fa-plus opacity-30"></i>
+                                 </div>
+                             )}
+                        </div>
+                    );
+                })}
+            </div>
+            <p className="text-center text-[10px] text-gray-400 mt-2">Tap a slot above to remove. Tap list below to add.</p>
+        </div>
+
+        {/* Idol List (Scrollable) */}
+        <div className="flex-1 overflow-y-auto bg-gray-900 p-2 pb-24">
+            <div className="grid grid-cols-4 gap-2">
+                {idols.map((idol) => {
+                    const isInDeck = slots.includes(idol.id);
+                    return (
+                        <div 
+                            key={idol.id} 
+                            onClick={() => handleListClick(idol.id)}
+                            className={`relative aspect-[3/4] rounded cursor-pointer overflow-hidden border transition-all ${
+                                isInDeck 
+                                    ? 'opacity-40 border-gray-600 grayscale' 
+                                    : 'border-transparent hover:border-white'
+                            }`}
+                        >
+                            <img src={idol.image} className="w-full h-full object-cover" loading="lazy" />
+                            
+                            {/* Rarity Badge */}
+                            <div className={`absolute top-0 left-0 px-1 text-[8px] font-bold text-white ${
+                                idol.rarity === 'SSR' ? 'bg-pink-500' : 
+                                idol.rarity === 'SR' ? 'bg-orange-500' : 'bg-gray-500'
+                            }`}>
+                                {idol.rarity}
+                            </div>
+
+                            {/* In Deck Indicator */}
+                            {isInDeck && (
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <span className="bg-pink-600 text-white text-[9px] font-bold px-2 py-0.5 rounded shadow">In Unit</span>
                                 </div>
                             )}
                         </div>
                     );
                 })}
             </div>
-            <p className="text-center text-[10px] text-gray-400 mt-2">Tap a slot above to clear it. Tap a card below to add/remove.</p>
         </div>
 
-        {/* Scrollable Idol List */}
-        <div className="flex-1 overflow-y-auto p-2 bg-gray-900 grid grid-cols-4 gap-2 content-start pb-24 z-[501]">
-            {idols.map(idol => {
-                const isSelected = slots.includes(idol.id);
-                return (
-                    <div 
-                        key={idol.id} 
-                        onClick={(e) => { e.stopPropagation(); toggleIdol(idol.id); }}
-                        className={`relative aspect-[3/4] rounded cursor-pointer overflow-hidden border-2 transition-all ${
-                            isSelected 
-                                ? 'border-green-500 opacity-80 scale-95 ring-2 ring-green-400' 
-                                : 'border-transparent hover:border-white'
-                        }`}
-                    >
-                        <img src={idol.image} className="w-full h-full object-cover pointer-events-none" alt={idol.name} loading="lazy" />
-                        
-                        <div className="absolute bottom-0 w-full bg-black/70 text-[9px] text-white text-center font-bold py-0.5">
-                            {(idol.vocal + idol.dance + idol.visual)}
-                        </div>
-
-                        <div className={`absolute top-0 left-0 px-1.5 py-0.5 rounded-br text-[8px] font-black z-10 ${
-                             idol.rarity === Rarity.SSR ? 'bg-pink-500 text-white shadow-pink-500/50' : 
-                             idol.rarity === Rarity.SR ? 'bg-orange-500 text-white' : 'bg-gray-500 text-gray-200'
-                        }`}>
-                            {idol.rarity}
-                        </div>
-
-                        {isSelected && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/40 pointer-events-none">
-                                <div className="bg-green-500 rounded-full w-8 h-8 flex items-center justify-center shadow-lg border-2 border-white animate-bounce">
-                                    <i className="fas fa-check text-white text-sm"></i>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                );
-            })}
-        </div>
-
-        {/* Fixed Footer Actions */}
-        <div className="absolute bottom-0 left-0 right-0 bg-gray-800 p-3 border-t border-gray-700 flex flex-col gap-2 z-[510] shadow-[0_-5px_15px_rgba(0,0,0,0.5)]">
-            <button 
-                onClick={(e) => { e.stopPropagation(); handleSave(); }}
+        {/* Footer Actions (Fixed) */}
+        <div className="absolute bottom-0 left-0 right-0 bg-gray-800 p-3 border-t border-gray-700 shadow-[0_-5px_15px_rgba(0,0,0,0.5)] z-20">
+             <button 
+                onClick={handleSave}
                 disabled={isSaving}
-                className="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white py-3 rounded-full font-bold shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 active:scale-95 transition-transform"
-            >
-                {isSaving ? <i className="fas fa-spinner animate-spin"></i> : <i className="fas fa-save"></i>} 
-                Confirm Deck
-            </button>
-            <button 
-                onClick={(e) => { e.stopPropagation(); onClose(); }}
-                className="w-full py-2 text-gray-400 text-xs hover:text-white underline"
-            >
-                Cancel / Return
-            </button>
+                className="w-full bg-gradient-to-r from-pink-600 to-purple-600 text-white font-bold py-3 rounded-xl shadow-lg hover:brightness-110 active:scale-95 transition-all disabled:opacity-50 flex justify-center items-center gap-2"
+             >
+                 {isSaving ? <i className="fas fa-spinner animate-spin"></i> : <i className="fas fa-save"></i>}
+                 Confirm Formation
+             </button>
         </div>
+
     </div>
   );
 };

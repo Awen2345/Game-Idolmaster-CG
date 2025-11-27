@@ -16,32 +16,37 @@ interface LiveBattleProps {
 const LiveBattle: React.FC<LiveBattleProps> = ({ userId, userDeckIds, allIdols, onFindOpponent, onCompleteBattle, onSaveDeck, onClose }) => {
   const [phase, setPhase] = useState<'MENU' | 'DECK' | 'MATCHMAKING' | 'VS' | 'BATTLE' | 'RESULT'>('MENU');
   const [opponent, setOpponent] = useState<BattleOpponent | null>(null);
+  
+  // Player Deck for Battle (Array of Idols, can contain undefined/null gaps visually if not handled, but we filter for combat)
   const [playerDeck, setPlayerDeck] = useState<Idol[]>([]);
+  
   const [battleResult, setBattleResult] = useState<BattleResult | null>(null);
   
   // Battle Animation States
-  const [turn, setTurn] = useState(0); // 0 to 4 (0=start, 1-4=cards reveal)
+  const [turn, setTurn] = useState(0); 
   const [playerScore, setPlayerScore] = useState(0);
   const [enemyScore, setEnemyScore] = useState(0);
 
   useEffect(() => {
-    // Hydrate deck from props. This runs whenever App.tsx updates userDeckIds
+    // Hydrate deck from props. 
+    // userDeckIds might contain nulls now: [null, "id2", null, "id4"]
     if (!userDeckIds || !allIdols) return;
     
-    // Safety check: Filter out nulls/undefineds
     const safeDeckIds = Array.isArray(userDeckIds) ? userDeckIds : [];
     const safeIdols = Array.isArray(allIdols) ? allIdols : [];
 
+    // For visualization, we might want to keep holes, but for combat we filter valid cards
     const hydrated = safeDeckIds
         .map(id => safeIdols.find(i => i.id === id))
-        .filter((i): i is Idol => !!i);
+        .filter((i): i is Idol => !!i); // Keep only valid idols for now
         
     setPlayerDeck(hydrated);
   }, [userDeckIds, allIdols]);
 
   const handleStartBattle = async (mode: 'BOT' | 'PVP') => {
-      if (playerDeck.length < 4) {
-          alert("Your deck is incomplete! Please select 4 idols.");
+      // Validate strength
+      if (playerDeck.length === 0) {
+          alert("Your deck is empty! Please set up your unit.");
           setPhase('DECK');
           return;
       }
@@ -49,7 +54,7 @@ const LiveBattle: React.FC<LiveBattleProps> = ({ userId, userDeckIds, allIdols, 
       const opp = await onFindOpponent(mode);
       if (opp) {
           setOpponent(opp);
-          setTimeout(() => setPhase('VS'), 1500); // Simulate finding time
+          setTimeout(() => setPhase('VS'), 1500); 
       } else {
           setPhase('MENU');
           alert("Could not find opponent. Please try again.");
@@ -64,15 +69,19 @@ const LiveBattle: React.FC<LiveBattleProps> = ({ userId, userDeckIds, allIdols, 
       
       let pScore = 0;
       let eScore = 0;
+      
+      // We animate up to 4 cards max
+      const maxTurns = Math.min(4, Math.max(playerDeck.length, opponent!.cards.length));
 
-      for (let i = 1; i <= 4; i++) {
+      for (let i = 1; i <= maxTurns; i++) {
           setTimeout(() => {
               setTurn(i);
+              
               const pCard = playerDeck[i-1];
               const eCard = opponent!.cards[i-1];
               
-              const pStat = (pCard.vocal + pCard.dance + pCard.visual);
-              const eStat = eCard.totalStats;
+              const pStat = pCard ? (pCard.vocal + pCard.dance + pCard.visual) : 0;
+              const eStat = eCard ? eCard.totalStats : 0;
               
               setPlayerScore(prev => prev + pStat);
               setEnemyScore(prev => prev + eStat);
@@ -89,11 +98,10 @@ const LiveBattle: React.FC<LiveBattleProps> = ({ userId, userDeckIds, allIdols, 
             setBattleResult(res);
             setPhase('RESULT');
           } else {
-            // Fallback if network error
             setBattleResult({ won, playerScore: pScore, opponentScore: eScore, rewards: { exp: 0, money: 0, jewels: 0 } });
             setPhase('RESULT');
           }
-      }, 6000);
+      }, (maxTurns + 1) * 1200 + 1000);
   };
 
   const saveDeck = async (ids: string[]) => {
@@ -106,7 +114,7 @@ const LiveBattle: React.FC<LiveBattleProps> = ({ userId, userDeckIds, allIdols, 
   };
 
   if (phase === 'DECK') {
-      // Key forces remount on open to clear internal state
+      // Pass the raw userDeckIds (which may include nulls) to the builder
       return (
         <DeckBuilder 
             key={Date.now()} 
@@ -134,11 +142,10 @@ const LiveBattle: React.FC<LiveBattleProps> = ({ userId, userDeckIds, allIdols, 
           <div className="absolute inset-0 z-50 bg-gradient-to-br from-blue-900 to-red-900 flex flex-col items-center justify-center overflow-hidden" onClick={startCombat}>
               <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-30"></div>
               
-              {/* VS Animation */}
               <div className="flex items-center justify-between w-full px-8 z-10">
                   <div className="text-left animate-[slideInLeft_1s]">
                       <h2 className="text-3xl font-black text-blue-400 italic">YOU</h2>
-                      <div className="text-white text-xl">Producer Lv.{Math.floor(Math.random() * 10) + 1}</div>
+                      <div className="text-white text-xl">Unit Strength</div>
                       <div className="text-sm text-gray-300 mt-2">Power: {playerDeck.reduce((a,c)=>a+(c.vocal+c.dance+c.visual),0)}</div>
                   </div>
                   <div className="text-6xl font-black text-white italic drop-shadow-[0_0_10px_rgba(255,255,255,0.8)] animate-bounce">VS</div>
@@ -159,16 +166,13 @@ const LiveBattle: React.FC<LiveBattleProps> = ({ userId, userDeckIds, allIdols, 
   if (phase === 'BATTLE' && opponent) {
       return (
           <div className="absolute inset-0 z-50 bg-gray-900 overflow-hidden flex flex-col">
-              {/* Background Arena */}
               <div className="absolute inset-0 bg-[url('https://picsum.photos/seed/stadium/800/1200')] bg-cover opacity-30"></div>
               
-              {/* Scores Header */}
               <div className="relative z-20 flex justify-between p-4 bg-gradient-to-b from-black/80 to-transparent">
                   <div className="text-blue-400 font-black text-2xl drop-shadow-md">{playerScore}</div>
                   <div className="text-red-500 font-black text-2xl drop-shadow-md">{enemyScore}</div>
               </div>
 
-              {/* Battlefield */}
               <div className="flex-1 relative z-10 flex flex-col justify-center gap-4 p-4">
                   {/* Enemy Side */}
                   <div className="flex justify-center gap-2">
@@ -236,7 +240,6 @@ const LiveBattle: React.FC<LiveBattleProps> = ({ userId, userDeckIds, allIdols, 
   // --- MENU ---
   return (
     <div className="absolute inset-0 z-[100] bg-gray-900 flex flex-col overflow-hidden animate-fade-in pointer-events-auto">
-        {/* Arena Background */}
         <div className="absolute inset-0 bg-[url('https://picsum.photos/seed/stadium/800/1200')] bg-cover opacity-40"></div>
         <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-black/50"></div>
 

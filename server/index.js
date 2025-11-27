@@ -160,8 +160,17 @@ app.get('/api/user/:id/idols', (req, res) => {
 // Get User Deck
 app.get('/api/user/:id/deck', (req, res) => {
     db.get("SELECT * FROM user_decks WHERE user_id = ?", [req.params.id], (err, row) => {
-        if (!row) return res.json([]);
-        const ids = [row.slot1_id, row.slot2_id, row.slot3_id, row.slot4_id].filter(Boolean);
+        if (!row) {
+            // Return empty 4 slots
+            return res.json([null, null, null, null]);
+        }
+        // Return exactly 4 items, null if empty, do NOT filter boolean
+        const ids = [
+            row.slot1_id || null, 
+            row.slot2_id || null, 
+            row.slot3_id || null, 
+            row.slot4_id || null
+        ];
         res.json(ids);
     });
 });
@@ -175,12 +184,11 @@ app.post('/api/deck', (req, res) => {
     
     const [s1, s2, s3, s4] = safeIds;
     
-    db.get("SELECT user_id FROM user_decks WHERE user_id = ?", [userId], (err, row) => {
-        if (row) {
-            db.run("UPDATE user_decks SET slot1_id=?, slot2_id=?, slot3_id=?, slot4_id=? WHERE user_id=?", [s1, s2, s3, s4, userId]);
-        } else {
-            db.run("INSERT INTO user_decks (user_id, slot1_id, slot2_id, slot3_id, slot4_id) VALUES (?,?,?,?,?)", [userId, s1, s2, s3, s4]);
-        }
+    // INSERT OR REPLACE is cleaner for single-row-per-user tables
+    const sql = `INSERT OR REPLACE INTO user_decks (user_id, slot1_id, slot2_id, slot3_id, slot4_id) VALUES (?, ?, ?, ?, ?)`;
+    
+    db.run(sql, [userId, s1, s2, s3, s4], (err) => {
+        if (err) return res.status(500).json({ error: err.message });
         res.json({ success: true });
     });
 });
