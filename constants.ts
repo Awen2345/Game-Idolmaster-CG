@@ -7,18 +7,18 @@ export const STAMINA_REGEN_MS = 60000; // 1 stamina per minute for demo purposes
 export const GACHA_COST = 250;
 export const GACHA_10_COST = 2500;
 
-// Mock Database Data
+// Mock Database Data - Updated with real Starlight Stage URLs
 export const MOCK_IDOLS_DB: Omit<Idol, 'id' | 'isLocked'>[] = [
-  { name: "Uzuki S.", rarity: Rarity.SSR, level: 1, maxLevel: 90, image: "https://picsum.photos/seed/uzuki/300/400", vocal: 50, dance: 40, visual: 60 },
-  { name: "Rin S.", rarity: Rarity.SSR, level: 1, maxLevel: 90, image: "https://picsum.photos/seed/rin/300/400", vocal: 45, dance: 45, visual: 65 },
-  { name: "Mio H.", rarity: Rarity.SSR, level: 1, maxLevel: 90, image: "https://picsum.photos/seed/mio/300/400", vocal: 60, dance: 40, visual: 40 },
-  { name: "Kaede T.", rarity: Rarity.SR, level: 1, maxLevel: 70, image: "https://picsum.photos/seed/kaede/300/400", vocal: 40, dance: 30, visual: 50 },
-  { name: "Mika J.", rarity: Rarity.SR, level: 1, maxLevel: 70, image: "https://picsum.photos/seed/mika/300/400", vocal: 45, dance: 35, visual: 45 },
-  { name: "Anzu F.", rarity: Rarity.R, level: 1, maxLevel: 40, image: "https://picsum.photos/seed/anzu/300/400", vocal: 20, dance: 20, visual: 20 },
-  { name: "Kirari M.", rarity: Rarity.R, level: 1, maxLevel: 40, image: "https://picsum.photos/seed/kirari/300/400", vocal: 25, dance: 25, visual: 15 },
-  { name: "Ranko K.", rarity: Rarity.N, level: 1, maxLevel: 20, image: "https://picsum.photos/seed/ranko/300/400", vocal: 10, dance: 10, visual: 10 },
-  { name: "Miku M.", rarity: Rarity.N, level: 1, maxLevel: 20, image: "https://picsum.photos/seed/miku/300/400", vocal: 10, dance: 12, visual: 8 },
-  { name: "Riina T.", rarity: Rarity.N, level: 1, maxLevel: 20, image: "https://picsum.photos/seed/riina/300/400", vocal: 11, dance: 9, visual: 10 },
+  { name: "Uzuki Shimamura", rarity: Rarity.SSR, level: 1, maxLevel: 90, image: "https://hidamarirhodonite.kirara.ca/card/100065.png", vocal: 50, dance: 40, visual: 60 },
+  { name: "Rin Shibuya", rarity: Rarity.SSR, level: 1, maxLevel: 90, image: "https://hidamarirhodonite.kirara.ca/card/100067.png", vocal: 45, dance: 45, visual: 65 },
+  { name: "Mio Honda", rarity: Rarity.SSR, level: 1, maxLevel: 90, image: "https://hidamarirhodonite.kirara.ca/card/100069.png", vocal: 60, dance: 40, visual: 40 },
+  { name: "Kaede Takagaki", rarity: Rarity.SR, level: 1, maxLevel: 70, image: "https://hidamarirhodonite.kirara.ca/card/100109.png", vocal: 40, dance: 30, visual: 50 },
+  { name: "Mika Jougasaki", rarity: Rarity.SR, level: 1, maxLevel: 70, image: "https://hidamarirhodonite.kirara.ca/card/100057.png", vocal: 45, dance: 35, visual: 45 },
+  { name: "Anzu Futaba", rarity: Rarity.R, level: 1, maxLevel: 40, image: "https://hidamarirhodonite.kirara.ca/card/100007.png", vocal: 20, dance: 20, visual: 20 },
+  { name: "Kirari Moroboshi", rarity: Rarity.R, level: 1, maxLevel: 40, image: "https://hidamarirhodonite.kirara.ca/card/100015.png", vocal: 25, dance: 25, visual: 15 },
+  { name: "Ranko Kanzaki", rarity: Rarity.N, level: 1, maxLevel: 20, image: "https://hidamarirhodonite.kirara.ca/card/100031.png", vocal: 10, dance: 10, visual: 10 },
+  { name: "Miku Maekawa", rarity: Rarity.N, level: 1, maxLevel: 20, image: "https://hidamarirhodonite.kirara.ca/card/100021.png", vocal: 10, dance: 12, visual: 8 },
+  { name: "Riina Tada", rarity: Rarity.N, level: 1, maxLevel: 20, image: "https://hidamarirhodonite.kirara.ca/card/100033.png", vocal: 11, dance: 9, visual: 10 },
 ];
 
 export const MOCK_STORY_CHAPTERS: Chapter[] = [

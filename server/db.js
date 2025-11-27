@@ -140,7 +140,6 @@ db.serialize(() => {
   )`);
 
   // 13. Promo Codes (Legacy Table - Config now in JSON)
-  // We keep the table for structure, but usage logic checks JSON first.
   db.run(`CREATE TABLE IF NOT EXISTS promo_codes (
     code TEXT PRIMARY KEY,
     type TEXT,
@@ -177,7 +176,7 @@ db.serialize(() => {
     banner_url TEXT
   )`);
 
-  // 17. NEW: User Read Chapters (To track progress on JSON stories)
+  // 17. User Read Chapters
   db.run(`CREATE TABLE IF NOT EXISTS user_read_chapters (
     user_id INTEGER,
     chapter_id TEXT,
@@ -192,7 +191,7 @@ db.serialize(() => {
     if (!row) {
         const now = Date.now();
         const oneWeek = 604800000;
-        db.run(`INSERT INTO events VALUES ('evt_live_groove', 'Live Groove: Visual Burst', 'Play lives to earn points and unlock rewards!', 'https://picsum.photos/seed/event_banner/600/200', ${now - 10000}, ${now + oneWeek})`);
+        db.run(`INSERT INTO events VALUES ('evt_live_groove', 'Live Groove: Visual Burst', 'Play lives to earn points and unlock rewards!', 'https://hidamarirhodonite.kirara.ca/card/100065.png', ${now - 10000}, ${now + oneWeek})`);
         db.run(`INSERT INTO event_rewards_def (event_id, point_threshold, reward_name, reward_amount) VALUES ('evt_live_groove', 100, '50 Star Jewels', 50)`);
         db.run(`INSERT INTO event_rewards_def (event_id, point_threshold, reward_name, reward_amount) VALUES ('evt_live_groove', 500, 'Stamina Drink', 1)`);
     }
@@ -203,24 +202,13 @@ db.serialize(() => {
   db.get("SELECT id FROM announcements", (err, row) => {
       if(!row) {
           db.run("INSERT INTO announcements (title, content, date, banner_url) VALUES (?, ?, ?, ?)", 
-            ["Welcome Producer!", "Thank you for playing the Web Version. Check out the new Live Groove event.", now, "https://picsum.photos/seed/news1/600/200"]);
+            ["Welcome Producer!", "Thank you for playing the Web Version. Check out the new Live Groove event.", now, "https://hidamarirhodonite.kirara.ca/spread/100223.png"]);
           db.run("INSERT INTO announcements (title, content, date, banner_url) VALUES (?, ?, ?, ?)", 
             ["Maintenance Update", "We fixed some bugs regarding the Gacha animation.", now - 86400000, null]);
       }
   });
-
-  // Seed Templates
-  const templates = [
-    { id: 'uzuki_ssr', name: "Uzuki S.", rarity: 'SSR', level: 1, maxLevel: 90, image: "https://picsum.photos/seed/uzuki/300/400", vocal: 50, dance: 40, visual: 60 },
-    { id: 'rin_ssr', name: "Rin S.", rarity: 'SSR', level: 1, maxLevel: 90, image: "https://picsum.photos/seed/rin/300/400", vocal: 45, dance: 45, visual: 65 },
-    { id: 'mio_ssr', name: "Mio H.", rarity: 'SSR', level: 1, maxLevel: 90, image: "https://picsum.photos/seed/mio/300/400", vocal: 60, dance: 40, visual: 40 },
-  ];
-
-  templates.forEach(t => {
-    db.run(`INSERT OR IGNORE INTO idol_templates (id, name, rarity, maxLevel, image, vocal, dance, visual) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, 
-            [t.id, t.name, t.rarity, t.maxLevel, t.image, t.vocal, t.dance, t.visual]);
-  });
+  
+  // NOTE: Idol Templates are now fetched dynamically from Starlight Stage API in server/index.js
 });
 
 module.exports = db;

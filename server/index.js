@@ -20,6 +20,69 @@ app.use('/assets/covers', express.static(path.join(__dirname, '../public/covers'
 const STAMINA_REGEN_MS = 60000;
 const CONFIG_PATH = path.join(__dirname, 'game_config.json');
 
+// --- IDOL DATA SYNC ---
+const syncIdolData = async () => {
+    // Check if we need to populate DB
+    db.get("SELECT count(*) as count FROM idol_templates", async (err, row) => {
+        if (err || (row && row.count > 0)) {
+            console.log("Idol database already populated.");
+            return;
+        }
+
+        console.log("Fetching Idol Data from Starlight Stage API...");
+        try {
+             // Fetching a list of cards from kirara.ca
+             // We fetch N, R, SR, SSR base cards (rarity IDs: 1, 3, 5, 7)
+             const response = await fetch("https://starlight.kirara.ca/api/v1/list/card_t?keys=id,name,rarity_dep,vocal_max,dance_max,visual_max");
+             if (!response.ok) throw new Error("API Fetch failed");
+             
+             const json = await response.json();
+             const cards = json.result;
+
+             if (!cards) return;
+
+             const stmt = db.prepare("INSERT OR IGNORE INTO idol_templates VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+             
+             let count = 0;
+             // We shuffle or pick a subset to avoid just getting the oldest cards, or just iterate.
+             // Starlight API returns them in ID order usually.
+             
+             for (const card of cards) {
+                 const rId = card.rarity_dep.rarity;
+                 // Filter for base forms only (N=1, R=3, SR=5, SSR=7)
+                 if (![1, 3, 5, 7].includes(rId)) continue;
+
+                 let rarity = 'N';
+                 let maxLevel = 20;
+                 if (rId === 3) { rarity = 'R'; maxLevel = 40; }
+                 if (rId === 5) { rarity = 'SR'; maxLevel = 70; }
+                 if (rId === 7) { rarity = 'SSR'; maxLevel = 90; }
+
+                 // Use the high quality card spread image
+                 const image = `https://hidamarirhodonite.kirara.ca/card/${card.id}.png`;
+
+                 stmt.run(
+                     card.id.toString(), 
+                     card.name, 
+                     rarity, 
+                     maxLevel, 
+                     image, 
+                     card.vocal_max, 
+                     card.dance_max, 
+                     card.visual_max
+                 );
+                 count++;
+                 // Limit initial population to 300 to keep startup fast, but plenty for gacha
+                 if (count >= 300) break; 
+             }
+             stmt.finalize();
+             console.log(`Successfully populated ${count} idols from Starlight Stage API.`);
+        } catch (e) {
+            console.error("Failed to sync idols:", e);
+        }
+    });
+};
+
 // --- HELPER TO READ CONFIG ---
 const getGameConfig = () => {
     try {
@@ -259,16 +322,30 @@ app.post('/api/gacha', (req, res) => {
     if (!row || row.starJewels < cost) return res.status(400).json({ error: "Not enough jewels" });
     const newJewels = row.starJewels - cost;
     db.run("UPDATE users SET starJewels = ? WHERE id = ?", [newJewels, userId]);
+    
+    // FETCH IDOLS FROM REAL DB
     db.all("SELECT * FROM idol_templates", (err, templates) => {
+      if (!templates || templates.length === 0) return res.status(500).json({error: "Gacha Data Not Ready"});
+
       const pulledIdols = [];
       const stmt = db.prepare("INSERT INTO user_idols (id, user_id, template_id, level, isLocked) VALUES (?, ?, ?, 1, 0)");
+      
+      const poolSSR = templates.filter(t => t.rarity === 'SSR');
+      const poolSR = templates.filter(t => t.rarity === 'SR');
+      const poolR = templates.filter(t => t.rarity === 'R');
+      const poolN = templates.filter(t => t.rarity === 'N');
+
       for(let i=0; i<count; i++) {
         const rand = Math.random() * 100;
-        let pool = templates.filter(t => t.rarity === 'N');
-        if (rand <= 5) pool = templates.filter(t => t.rarity === 'SSR');
-        else if (rand <= 20) pool = templates.filter(t => t.rarity === 'SR');
-        else if (rand <= 50) pool = templates.filter(t => t.rarity === 'R');
-        const template = pool[Math.floor(Math.random() * pool.length)] || templates[0];
+        let pool = poolN;
+        if (rand <= 3) pool = poolSSR; // 3% SSR
+        else if (rand <= 12) pool = poolSR; // 9% SR
+        else if (rand <= 90) pool = poolR; // R
+        
+        // Fallback if pool is empty (e.g. sync incomplete)
+        if (pool.length === 0) pool = templates;
+
+        const template = pool[Math.floor(Math.random() * pool.length)];
         const instanceId = `${Date.now()}-${i}-${Math.random().toString(36).substr(2, 5)}`;
         stmt.run(instanceId, userId, template.id);
         pulledIdols.push({ ...template, id: instanceId, level: 1, isLocked: false });
@@ -415,4 +492,5 @@ app.get('/api/announcements', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Backend Server running on http://localhost:${PORT}`);
+  syncIdolData();
 });
