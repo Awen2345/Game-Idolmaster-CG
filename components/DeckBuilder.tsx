@@ -57,7 +57,7 @@ const DeckBuilder: React.FC<DeckBuilderProps> = ({ idols, currentDeckIds, onSave
   const totalStats = deck.reduce((acc, i) => i ? acc + (i.vocal + i.dance + i.visual) : acc, 0);
 
   return (
-    <div className="absolute inset-0 z-50 bg-gray-900 flex flex-col">
+    <div className="absolute inset-0 z-[100] bg-gray-900 flex flex-col animate-fade-in">
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-900 to-indigo-900 p-4 shadow-lg border-b border-white/10 flex justify-between items-center">
             <div>

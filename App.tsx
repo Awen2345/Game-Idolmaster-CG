@@ -44,6 +44,16 @@ const App: React.FC = () => {
       setShowBattle(true);
   };
 
+  // Wrapper to update local state immediately after saving deck
+  const handleSaveDeck = async (ids: string[]): Promise<boolean> => {
+      const success = await saveDeck(ids);
+      if (success) {
+          setUserDeckIds(ids);
+          return true;
+      }
+      return false;
+  };
+
   const renderContent = () => {
     if (error) {
         return (
@@ -197,7 +207,7 @@ const App: React.FC = () => {
                         allIdols={idols}
                         onFindOpponent={findOpponent}
                         onCompleteBattle={completeBattle}
-                        onSaveDeck={saveDeck}
+                        onSaveDeck={handleSaveDeck} // Use wrapper to sync state
                         onClose={() => setShowBattle(false)}
                     />
                 )}

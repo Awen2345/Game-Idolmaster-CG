@@ -25,7 +25,7 @@ const LiveBattle: React.FC<LiveBattleProps> = ({ userId, userDeckIds, allIdols, 
   const [enemyScore, setEnemyScore] = useState(0);
 
   useEffect(() => {
-    // Hydrate deck
+    // Hydrate deck from props. This runs whenever App.tsx updates userDeckIds
     const hydrated = userDeckIds.map(id => allIdols.find(i => i.id === id)).filter(Boolean) as Idol[];
     setPlayerDeck(hydrated);
   }, [userDeckIds, allIdols]);
@@ -88,8 +88,12 @@ const LiveBattle: React.FC<LiveBattleProps> = ({ userId, userDeckIds, allIdols, 
   };
 
   const saveDeck = async (ids: string[]) => {
-      await onSaveDeck(ids);
-      setPhase('MENU');
+      const success = await onSaveDeck(ids);
+      if(success) {
+        setPhase('MENU');
+      } else {
+        alert("Failed to save deck");
+      }
   };
 
   if (phase === 'DECK') {
@@ -211,7 +215,7 @@ const LiveBattle: React.FC<LiveBattleProps> = ({ userId, userDeckIds, allIdols, 
 
   // --- MENU ---
   return (
-    <div className="absolute inset-0 z-40 bg-gray-900 flex flex-col overflow-hidden">
+    <div className="absolute inset-0 z-40 bg-gray-900 flex flex-col overflow-hidden animate-fade-in">
         {/* Arena Background */}
         <div className="absolute inset-0 bg-[url('https://picsum.photos/seed/stadium/800/1200')] bg-cover opacity-40"></div>
         <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-black/50"></div>
