@@ -164,7 +164,7 @@ app.get('/api/user/:id/deck', (req, res) => {
             // Return empty 4 slots
             return res.json([null, null, null, null]);
         }
-        // Return exactly 4 items, null if empty, do NOT filter boolean
+        // Return exactly 4 items, null if empty or undefined
         const ids = [
             row.slot1_id || null, 
             row.slot2_id || null, 
@@ -178,17 +178,22 @@ app.get('/api/user/:id/deck', (req, res) => {
 // Save Deck
 app.post('/api/deck', (req, res) => {
     const { userId, cardIds } = req.body; 
-    // Ensure array has 4 elements, fill with null if undefined
+    
+    // Ensure array has exactly 4 elements. Pad with null if missing.
+    // If cardIds is undefined, treat as empty array.
     const safeIds = [...(cardIds || [])];
     while(safeIds.length < 4) safeIds.push(null);
     
     const [s1, s2, s3, s4] = safeIds;
     
-    // INSERT OR REPLACE is cleaner for single-row-per-user tables
+    // INSERT OR REPLACE checks the PRIMARY KEY (user_id)
     const sql = `INSERT OR REPLACE INTO user_decks (user_id, slot1_id, slot2_id, slot3_id, slot4_id) VALUES (?, ?, ?, ?, ?)`;
     
     db.run(sql, [userId, s1, s2, s3, s4], (err) => {
-        if (err) return res.status(500).json({ error: err.message });
+        if (err) {
+            console.error("Deck Save Error:", err);
+            return res.status(500).json({ error: err.message });
+        }
         res.json({ success: true });
     });
 });

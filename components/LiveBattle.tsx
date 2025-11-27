@@ -122,6 +122,7 @@ const LiveBattle: React.FC<LiveBattleProps> = ({ userId, userDeckIds, allIdols, 
             currentDeckIds={userDeckIds} 
             onSave={saveDeck} 
             onClose={() => setPhase('MENU')} 
+            onExit={onClose} // Pass the global exit handler
         />
       );
   }
