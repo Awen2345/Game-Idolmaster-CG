@@ -72,28 +72,27 @@ export const MOCK_EXTRA_COMMUS: Chapter[] = [
   { id: 'ext_1', title: 'April Fools 2024', type: CommuType.EXTRA, isRead: false, dialogs: [{ speaker: 'Chihiro', text: 'Just kidding!', expression: 'happy' }] }
 ];
 
-// Note: For these to work locally, ensure you have files in public/music/ and public/covers/
-// Or use external URLs for testing.
+// YouTube Links for Demo
 export const MOCK_SONGS: Song[] = [
     {
         id: 'sng_1',
         title: 'Star!!',
         artist: 'Cinderella Project',
-        url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', // Example URL
-        cover: 'https://picsum.photos/seed/star/100/100'
+        url: 'https://www.youtube.com/watch?v=SwmwS_7Wfww', // Official Anime OP 1
+        cover: 'https://i.ytimg.com/vi/SwmwS_7Wfww/hqdefault.jpg'
     },
     {
         id: 'sng_2',
         title: 'Shine!!',
         artist: 'Cinderella Project',
-        url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3', // Example URL
-        cover: 'https://picsum.photos/seed/shine/100/100'
+        url: 'https://www.youtube.com/watch?v=a3YV8z5-t8M', // Official Anime OP 2
+        cover: 'https://i.ytimg.com/vi/a3YV8z5-t8M/hqdefault.jpg'
     },
     {
         id: 'sng_3',
         title: 'M@GIC',
         artist: 'Cinderella Project',
-        url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3', // Example URL
-        cover: 'https://picsum.photos/seed/magic/100/100'
+        url: 'https://www.youtube.com/watch?v=v=0pLgD54y9T0', // Ep 25 Insert
+        cover: 'https://i.ytimg.com/vi/0pLgD54y9T0/hqdefault.jpg'
     }
 ];

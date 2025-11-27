@@ -1,5 +1,6 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
+import ReactPlayer from 'react-player';
 import { MOCK_SONGS } from '../constants';
 
 interface MusicPlayerProps {
@@ -10,19 +11,9 @@ interface MusicPlayerProps {
 const MusicPlayer: React.FC<MusicPlayerProps> = ({ isOpen, onClose }) => {
   const [currentSongIndex, setCurrentSongIndex] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [volume, setVolume] = useState(0.5);
 
   const currentSong = MOCK_SONGS[currentSongIndex];
-
-  useEffect(() => {
-    if (audioRef.current) {
-        if (isPlaying) {
-            audioRef.current.play().catch(e => console.log("Autoplay blocked usually:", e));
-        } else {
-            audioRef.current.pause();
-        }
-    }
-  }, [isPlaying, currentSongIndex]);
 
   const togglePlay = () => setIsPlaying(!isPlaying);
 
@@ -43,7 +34,19 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ isOpen, onClose }) => {
 
   return (
     <>
-        <audio ref={audioRef} src={currentSong.url} onEnded={nextSong} />
+        {/* Hidden ReactPlayer to handle YouTube/Audio logic */}
+        <div className="hidden">
+            <ReactPlayer
+                url={currentSong.url}
+                playing={isPlaying}
+                onEnded={nextSong}
+                volume={volume}
+                width="0"
+                height="0"
+                controls={false}
+                playsinline
+            />
+        </div>
 
         {/* Jukebox Overlay */}
         <div className={`fixed inset-x-0 bottom-[64px] bg-gray-900/95 backdrop-blur-xl border-t border-pink-500/30 transition-transform duration-500 z-40 rounded-t-3xl shadow-[0_-5px_20px_rgba(0,0,0,0.5)] ${isOpen ? 'translate-y-0' : 'translate-y-[120%]'}`}>
@@ -64,6 +67,10 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ isOpen, onClose }) => {
                     <div className="w-20 h-20 rounded-lg overflow-hidden shadow-lg border border-white/10 relative shrink-0">
                         <img src={currentSong.cover} alt="Cover" className={`w-full h-full object-cover ${isPlaying ? 'animate-[spin_4s_linear_infinite]' : ''}`} />
                         <div className="absolute inset-0 bg-black/20 rounded-lg ring-1 ring-inset ring-white/10"></div>
+                        {/* YouTube indicator */}
+                        {currentSong.url.includes('youtu') && (
+                            <div className="absolute bottom-1 right-1 text-red-600 text-lg"><i className="fab fa-youtube"></i></div>
+                        )}
                     </div>
                     <div className="flex-1 overflow-hidden min-w-0">
                         <h3 className="text-white font-bold text-lg truncate leading-tight">{currentSong.title}</h3>
@@ -85,6 +92,19 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ isOpen, onClose }) => {
                     <button onClick={nextSong} className="text-gray-400 hover:text-white transition-colors">
                         <i className="fas fa-forward text-2xl"></i>
                     </button>
+                </div>
+                
+                {/* Volume Slider */}
+                <div className="flex items-center gap-2 mb-4 px-2">
+                    <i className="fas fa-volume-down text-gray-500 text-xs"></i>
+                    <input 
+                        type="range" 
+                        min={0} max={1} step={0.05} 
+                        value={volume}
+                        onChange={(e) => setVolume(parseFloat(e.target.value))}
+                        className="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-pink-500"
+                    />
+                    <i className="fas fa-volume-up text-gray-500 text-xs"></i>
                 </div>
 
                 {/* Playlist List */}
