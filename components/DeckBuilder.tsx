@@ -14,10 +14,13 @@ const DeckBuilder: React.FC<DeckBuilderProps> = ({ idols, currentDeckIds, onSave
   // Slots State: always length 4. Holds ID string or null.
   const [slots, setSlots] = useState<(string | null)[]>([null, null, null, null]);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDirty, setIsDirty] = useState(false); // New state to track if user has modified deck
 
-  // Initialize Slots ONCE from props
+  // Initialize Slots from props, but ONLY if user hasn't touched the deck (isDirty check)
   useEffect(() => {
-    // If we have incoming deck data from server
+    // If user has made edits, do NOT overwrite with background updates from server
+    if (isDirty) return;
+
     if (Array.isArray(currentDeckIds)) {
         // Pad to 4 if needed (should come correct from server but safety first)
         const incoming = [...currentDeckIds];
@@ -31,7 +34,7 @@ const DeckBuilder: React.FC<DeckBuilderProps> = ({ idols, currentDeckIds, onSave
         });
         setSlots(validated);
     }
-  }, []); // Only run on mount
+  }, [currentDeckIds, idols, isDirty]); 
 
   const getIdol = (id: string | null) => id ? idols.find(i => i.id === id) : null;
 
@@ -40,6 +43,7 @@ const DeckBuilder: React.FC<DeckBuilderProps> = ({ idols, currentDeckIds, onSave
   const handleSlotClick = (index: number) => {
       // Clicking a slot removes the card
       if (slots[index]) {
+          setIsDirty(true); // User is modifying
           const newSlots = [...slots];
           newSlots[index] = null;
           setSlots(newSlots);
@@ -49,6 +53,8 @@ const DeckBuilder: React.FC<DeckBuilderProps> = ({ idols, currentDeckIds, onSave
   const handleListClick = (idolId: string) => {
       // Check if already in deck
       const existingIndex = slots.indexOf(idolId);
+
+      setIsDirty(true); // User is modifying
 
       if (existingIndex !== -1) {
           // If in deck -> remove it
@@ -75,6 +81,7 @@ const DeckBuilder: React.FC<DeckBuilderProps> = ({ idols, currentDeckIds, onSave
       const payload = slots as any as string[]; 
       await onSave(payload);
       setIsSaving(false);
+      setIsDirty(false); // Reset dirty flag after save
   };
 
   const totalPower = slots.reduce((acc, id) => {

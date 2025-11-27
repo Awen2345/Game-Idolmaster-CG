@@ -17,7 +17,7 @@ const LiveBattle: React.FC<LiveBattleProps> = ({ userId, userDeckIds, allIdols, 
   const [phase, setPhase] = useState<'MENU' | 'DECK' | 'MATCHMAKING' | 'VS' | 'BATTLE' | 'RESULT'>('MENU');
   const [opponent, setOpponent] = useState<BattleOpponent | null>(null);
   
-  // Player Deck for Battle (Array of Idols, can contain undefined/null gaps visually if not handled, but we filter for combat)
+  // Player Deck for Battle
   const [playerDeck, setPlayerDeck] = useState<Idol[]>([]);
   
   const [battleResult, setBattleResult] = useState<BattleResult | null>(null);
@@ -28,23 +28,19 @@ const LiveBattle: React.FC<LiveBattleProps> = ({ userId, userDeckIds, allIdols, 
   const [enemyScore, setEnemyScore] = useState(0);
 
   useEffect(() => {
-    // Hydrate deck from props. 
-    // userDeckIds might contain nulls now: [null, "id2", null, "id4"]
     if (!userDeckIds || !allIdols) return;
     
     const safeDeckIds = Array.isArray(userDeckIds) ? userDeckIds : [];
     const safeIdols = Array.isArray(allIdols) ? allIdols : [];
 
-    // For visualization, we might want to keep holes, but for combat we filter valid cards
     const hydrated = safeDeckIds
         .map(id => safeIdols.find(i => i.id === id))
-        .filter((i): i is Idol => !!i); // Keep only valid idols for now
+        .filter((i): i is Idol => !!i); 
         
     setPlayerDeck(hydrated);
   }, [userDeckIds, allIdols]);
 
   const handleStartBattle = async (mode: 'BOT' | 'PVP') => {
-      // Validate strength
       if (playerDeck.length === 0) {
           alert("Your deck is empty! Please set up your unit.");
           setPhase('DECK');
@@ -70,7 +66,6 @@ const LiveBattle: React.FC<LiveBattleProps> = ({ userId, userDeckIds, allIdols, 
       let pScore = 0;
       let eScore = 0;
       
-      // We animate up to 4 cards max
       const maxTurns = Math.min(4, Math.max(playerDeck.length, opponent!.cards.length));
 
       for (let i = 1; i <= maxTurns; i++) {
@@ -113,16 +108,15 @@ const LiveBattle: React.FC<LiveBattleProps> = ({ userId, userDeckIds, allIdols, 
       }
   };
 
+  // CRITICAL FIX: Removed key={Date.now()} to prevent constant re-rendering/destroying of the component
   if (phase === 'DECK') {
-      // Pass the raw userDeckIds (which may include nulls) to the builder
       return (
         <DeckBuilder 
-            key={Date.now()} 
             idols={Array.isArray(allIdols) ? allIdols : []} 
             currentDeckIds={userDeckIds} 
             onSave={saveDeck} 
             onClose={() => setPhase('MENU')} 
-            onExit={onClose} // Pass the global exit handler
+            onExit={onClose} 
         />
       );
   }
