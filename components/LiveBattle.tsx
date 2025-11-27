@@ -235,7 +235,7 @@ const LiveBattle: React.FC<LiveBattleProps> = ({ userId, userDeckIds, allIdols, 
 
   // --- MENU ---
   return (
-    <div className="absolute inset-0 z-40 bg-gray-900 flex flex-col overflow-hidden animate-fade-in">
+    <div className="absolute inset-0 z-[100] bg-gray-900 flex flex-col overflow-hidden animate-fade-in pointer-events-auto">
         {/* Arena Background */}
         <div className="absolute inset-0 bg-[url('https://picsum.photos/seed/stadium/800/1200')] bg-cover opacity-40"></div>
         <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-black/50"></div>

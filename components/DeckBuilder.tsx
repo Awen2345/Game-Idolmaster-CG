@@ -16,11 +16,10 @@ const DeckBuilder: React.FC<DeckBuilderProps> = ({ idols, currentDeckIds, onSave
 
   // Initialize slots
   useEffect(() => {
-    // If user has started editing, do not overwrite with props
+    // If user has started editing, do not overwrite with props to prevent resets
     if (isDirty) return;
 
     // Validate incoming Deck IDs against the actual Idol Inventory
-    // This prevents "Ghost Slots" where a deck has an ID that doesn't exist in the user's idols
     const validSlots = [null, null, null, null] as (string | null)[];
     
     if (currentDeckIds && Array.isArray(currentDeckIds)) {
@@ -73,7 +72,7 @@ const DeckBuilder: React.FC<DeckBuilderProps> = ({ idols, currentDeckIds, onSave
       }
       
       setIsSaving(true);
-      await onSave(activeIds); // Save logic handles padding nulls if needed backend side, or we send partial
+      await onSave(activeIds); // Save logic handles padding nulls if needed backend side
       setIsSaving(false);
   };
 
@@ -85,26 +84,31 @@ const DeckBuilder: React.FC<DeckBuilderProps> = ({ idols, currentDeckIds, onSave
   }, 0);
 
   return (
-    <div className="absolute inset-0 z-[100] bg-gray-900 flex flex-col h-full animate-fade-in">
+    <div className="absolute inset-0 z-[500] bg-gray-900 flex flex-col h-full animate-fade-in pointer-events-auto">
         {/* Fixed Header */}
-        <div className="bg-gradient-to-r from-blue-900 to-indigo-900 p-3 shadow-lg flex justify-between items-center shrink-0 z-10">
+        <div className="bg-gradient-to-r from-blue-900 to-indigo-900 p-3 shadow-lg flex justify-between items-center shrink-0 z-[510]">
             <div>
                 <h2 className="text-lg font-bold text-white italic">Unit Setup</h2>
                 <p className="text-xs text-blue-300">Total Power: {totalStats}</p>
             </div>
             {/* Top Close Button for redundancy */}
-            <button onClick={onClose} className="text-gray-400 p-2"><i className="fas fa-times"></i></button>
+            <button 
+                onClick={(e) => { e.stopPropagation(); onClose(); }} 
+                className="bg-red-500/20 text-white p-2 rounded hover:bg-red-500 transition-colors"
+            >
+                <i className="fas fa-times"></i> Close
+            </button>
         </div>
 
         {/* Deck Slots Area */}
-        <div className="bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-gray-800 p-4 shrink-0 shadow-md z-10">
+        <div className="bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-gray-800 p-4 shrink-0 shadow-md z-[505]">
             <div className="flex justify-center gap-2">
                 {slots.map((slotId, i) => {
                     const idol = getIdol(slotId);
                     return (
                         <div 
                             key={i} 
-                            onClick={() => clearSlot(i)}
+                            onClick={(e) => { e.stopPropagation(); clearSlot(i); }}
                             className="w-20 h-28 bg-gray-900 rounded border-2 border-dashed border-gray-600 flex items-center justify-center relative overflow-hidden shadow-inner cursor-pointer hover:border-red-400 transition-colors group"
                         >
                             {idol ? (
@@ -131,16 +135,16 @@ const DeckBuilder: React.FC<DeckBuilderProps> = ({ idols, currentDeckIds, onSave
         </div>
 
         {/* Scrollable Idol List */}
-        <div className="flex-1 overflow-y-auto p-2 bg-gray-900 grid grid-cols-4 gap-2 content-start pb-24">
+        <div className="flex-1 overflow-y-auto p-2 bg-gray-900 grid grid-cols-4 gap-2 content-start pb-24 z-[501]">
             {idols.map(idol => {
                 const isSelected = slots.includes(idol.id);
                 return (
                     <div 
                         key={idol.id} 
-                        onClick={() => toggleIdol(idol.id)}
+                        onClick={(e) => { e.stopPropagation(); toggleIdol(idol.id); }}
                         className={`relative aspect-[3/4] rounded cursor-pointer overflow-hidden border-2 transition-all ${
                             isSelected 
-                                ? 'border-green-500 opacity-60 scale-95' 
+                                ? 'border-green-500 opacity-80 scale-95 ring-2 ring-green-400' 
                                 : 'border-transparent hover:border-white'
                         }`}
                     >
@@ -158,9 +162,9 @@ const DeckBuilder: React.FC<DeckBuilderProps> = ({ idols, currentDeckIds, onSave
                         </div>
 
                         {isSelected && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/20 pointer-events-none">
-                                <div className="bg-green-500 rounded-full w-6 h-6 flex items-center justify-center shadow-lg border-2 border-white">
-                                    <i className="fas fa-check text-white text-xs"></i>
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/40 pointer-events-none">
+                                <div className="bg-green-500 rounded-full w-8 h-8 flex items-center justify-center shadow-lg border-2 border-white animate-bounce">
+                                    <i className="fas fa-check text-white text-sm"></i>
                                 </div>
                             </div>
                         )}
@@ -170,9 +174,9 @@ const DeckBuilder: React.FC<DeckBuilderProps> = ({ idols, currentDeckIds, onSave
         </div>
 
         {/* Fixed Footer Actions */}
-        <div className="absolute bottom-0 left-0 right-0 bg-gray-800 p-3 border-t border-gray-700 flex flex-col gap-2 z-20 shadow-[0_-5px_15px_rgba(0,0,0,0.5)]">
+        <div className="absolute bottom-0 left-0 right-0 bg-gray-800 p-3 border-t border-gray-700 flex flex-col gap-2 z-[510] shadow-[0_-5px_15px_rgba(0,0,0,0.5)]">
             <button 
-                onClick={handleSave}
+                onClick={(e) => { e.stopPropagation(); handleSave(); }}
                 disabled={isSaving}
                 className="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white py-3 rounded-full font-bold shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 active:scale-95 transition-transform"
             >
@@ -180,10 +184,10 @@ const DeckBuilder: React.FC<DeckBuilderProps> = ({ idols, currentDeckIds, onSave
                 Confirm Deck
             </button>
             <button 
-                onClick={onClose}
+                onClick={(e) => { e.stopPropagation(); onClose(); }}
                 className="w-full py-2 text-gray-400 text-xs hover:text-white underline"
             >
-                Cancel
+                Cancel / Return
             </button>
         </div>
     </div>
