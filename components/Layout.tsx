@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { UserState } from '../types';
 import MusicPlayer from './MusicPlayer';
@@ -11,10 +10,20 @@ interface LayoutProps {
   onUseItem: (type: 'staminaDrink' | 'trainerTicket') => void;
   onLogout: () => void;
   isEventActive?: boolean;
+  onRedeem?: (code: string) => Promise<{ success: boolean; message: string }>;
 }
 
-const Layout: React.FC<LayoutProps> = ({ user, children, activeTab, onTabChange, onUseItem, onLogout, isEventActive }) => {
+const Layout: React.FC<LayoutProps> = ({ user, children, activeTab, onTabChange, onUseItem, onLogout, isEventActive, onRedeem }) => {
   const [isMusicOpen, setIsMusicOpen] = useState(false);
+
+  const handleRedeemClick = async () => {
+    if (!onRedeem) return;
+    const code = prompt("Enter Promo Code:");
+    if (code) {
+        const result = await onRedeem(code);
+        alert(result.message);
+    }
+  };
 
   return (
     <div className="flex flex-col h-screen bg-gray-900 text-white overflow-hidden max-w-md mx-auto shadow-2xl relative border-x border-gray-700">
@@ -23,6 +32,11 @@ const Layout: React.FC<LayoutProps> = ({ user, children, activeTab, onTabChange,
         <div className="flex justify-between items-center mb-1">
           <div className="flex items-center gap-2">
               <span className="font-bold text-sm">Lv.{user.level} {user.name}</span>
+              {onRedeem && (
+                <button onClick={handleRedeemClick} className="text-[10px] bg-blue-500/50 px-1 rounded hover:bg-blue-500" title="Redeem Code">
+                    <i className="fas fa-ticket-alt"></i>
+                </button>
+              )}
               <button onClick={onLogout} className="text-[10px] bg-red-500/50 px-1 rounded hover:bg-red-500"><i className="fas fa-sign-out-alt"></i></button>
           </div>
           <div className="flex items-center gap-2">

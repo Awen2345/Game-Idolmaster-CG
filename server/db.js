@@ -139,16 +139,70 @@ db.serialize(() => {
     url TEXT
   )`);
 
+  // 13. Promo Codes
+  db.run(`CREATE TABLE IF NOT EXISTS promo_codes (
+    code TEXT PRIMARY KEY,
+    type TEXT, -- 'PUBLIC' or 'UNIQUE'
+    reward_type TEXT, -- 'JEWEL', 'MONEY', 'ITEM'
+    reward_amount INTEGER,
+    start_time INTEGER,
+    end_time INTEGER
+  )`);
+
+  // 14. Promo Usage
+  db.run(`CREATE TABLE IF NOT EXISTS promo_usage (
+    user_id INTEGER,
+    code TEXT,
+    used_at INTEGER,
+    PRIMARY KEY (user_id, code)
+  )`);
+
+  // 15. Presents / Gift Box
+  db.run(`CREATE TABLE IF NOT EXISTS presents (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    type TEXT, -- 'MONEY', 'JEWEL', 'ITEM_STAMINA', 'ITEM_TICKET'
+    amount INTEGER,
+    description TEXT,
+    received_at INTEGER
+  )`);
+
+  // 16. Announcements
+  db.run(`CREATE TABLE IF NOT EXISTS announcements (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT,
+    content TEXT,
+    date INTEGER,
+    banner_url TEXT
+  )`);
+
   // --- SEED DATA ---
+  
+  // Seed Event
   db.get("SELECT id FROM events WHERE id = 'evt_live_groove'", (err, row) => {
     if (!row) {
-        console.log("Seeding Event...");
         const now = Date.now();
         const oneWeek = 604800000;
         db.run(`INSERT INTO events VALUES ('evt_live_groove', 'Live Groove: Visual Burst', 'Play lives to earn points and unlock rewards!', 'https://picsum.photos/seed/event_banner/600/200', ${now - 10000}, ${now + oneWeek})`);
         db.run(`INSERT INTO event_rewards_def (event_id, point_threshold, reward_name, reward_amount) VALUES ('evt_live_groove', 100, '50 Star Jewels', 50)`);
         db.run(`INSERT INTO event_rewards_def (event_id, point_threshold, reward_name, reward_amount) VALUES ('evt_live_groove', 500, 'Stamina Drink', 1)`);
     }
+  });
+
+  // Seed Promo Codes
+  db.run(`INSERT OR IGNORE INTO promo_codes VALUES ('WELCOME2024', 'PUBLIC', 'JEWEL', 2500, 0, 9999999999999)`);
+  db.run(`INSERT OR IGNORE INTO promo_codes VALUES ('STARTERPACK', 'PUBLIC', 'ITEM', 5, 0, 9999999999999)`); // 5 Stamina Drinks
+  db.run(`INSERT OR IGNORE INTO promo_codes VALUES ('UNIQUE123', 'UNIQUE', 'MONEY', 50000, 0, 9999999999999)`);
+
+  // Seed Announcements
+  db.get("SELECT id FROM announcements", (err, row) => {
+      if(!row) {
+          const now = Date.now();
+          db.run("INSERT INTO announcements (title, content, date, banner_url) VALUES (?, ?, ?, ?)", 
+            ["Welcome Producer!", "Thank you for playing the Web Version. Check out the new Live Groove event.", now, "https://picsum.photos/seed/news1/600/200"]);
+          db.run("INSERT INTO announcements (title, content, date, banner_url) VALUES (?, ?, ?, ?)", 
+            ["Maintenance Update", "We fixed some bugs regarding the Gacha animation.", now - 86400000, null]);
+      }
   });
 
   // Seed Templates

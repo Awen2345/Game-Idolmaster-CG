@@ -45,6 +45,8 @@ app.post('/api/auth/register', (req, res) => {
                 const userId = this.lastID;
                 db.run(`INSERT INTO user_items VALUES (${userId}, 'staminaDrink', 3)`);
                 db.run(`INSERT INTO user_items VALUES (${userId}, 'trainerTicket', 5)`);
+                // Give Welcome Present
+                db.run("INSERT INTO presents (user_id, type, amount, description, received_at) VALUES (?, 'JEWEL', 500, 'Welcome Gift!', ?)", [userId, now]);
                 res.json({ success: true, userId });
             });
 });
@@ -98,15 +100,12 @@ app.get('/api/event/active/:userId', (req, res) => {
             db.all("SELECT * FROM event_rewards_def WHERE event_id = ? ORDER BY point_threshold ASC", [event.id], (err, rewards) => {
                 db.all(`SELECT u.name, ep.points FROM event_points ep JOIN users u ON ep.user_id = u.id WHERE ep.event_id = ? ORDER BY ep.points DESC LIMIT 5`, [event.id], (err, ranking) => {
                     const rankingWithIndex = ranking.map((r, i) => ({ rank: i + 1, name: r.name, points: r.points }));
-                    
-                    // FIX: Mapping snake_case DB columns to camelCase for Frontend
                     const mappedRewards = rewards.map(r => ({
                         pointThreshold: r.point_threshold,
                         rewardName: r.reward_name,
                         rewardAmount: r.reward_amount,
                         claimed: userPoints >= r.point_threshold
                     }));
-
                     res.json({
                         id: event.id, name: event.name, description: event.description, banner: event.banner,
                         startTime: event.start_time, endTime: event.end_time, isActive: true, userPoints,
@@ -266,6 +265,90 @@ app.post('/api/idol/retire', (req, res) => {
      db.run("UPDATE users SET money = money + ? WHERE id = ?", [gain, userId]);
      res.json({ success: true, moneyGain: gain });
   });
+});
+
+app.post('/api/promo/redeem', (req, res) => {
+    const { userId, code } = req.body;
+    const now = Date.now();
+    db.get("SELECT * FROM promo_codes WHERE code = ?", [code], (err, promo) => {
+        if (!promo) return res.status(400).json({ error: "Invalid Code" });
+        if (now < promo.start_time || now > promo.end_time) return res.status(400).json({ error: "Code Expired or Not Started" });
+
+        db.get("SELECT * FROM promo_usage WHERE user_id = ? AND code = ?", [userId, code], (err, usage) => {
+            if (usage) return res.status(400).json({ error: "Already used" });
+
+            // If Unique code, check if ANYONE has used it
+            if (promo.type === 'UNIQUE') {
+                db.get("SELECT * FROM promo_usage WHERE code = ?", [code], (err, anyUsage) => {
+                    if (anyUsage) return res.status(400).json({ error: "Code already claimed by someone else" });
+                    applyReward();
+                });
+            } else {
+                applyReward();
+            }
+
+            function applyReward() {
+                 db.run("INSERT INTO promo_usage (user_id, code, used_at) VALUES (?, ?, ?)", [userId, code, now]);
+                 
+                 // Instead of giving directly, put in Presents Box
+                 let itemName = '';
+                 if (promo.reward_type === 'ITEM') itemName = 'Stamina Drink';
+                 
+                 db.run("INSERT INTO presents (user_id, type, amount, description, received_at) VALUES (?, ?, ?, ?, ?)", 
+                    [userId, promo.reward_type, promo.reward_amount, `Promo: ${code}`, now]);
+
+                 res.json({ success: true, message: "Reward sent to Present Box!" });
+            }
+        });
+    });
+});
+
+app.get('/api/user/:id/presents', (req, res) => {
+    db.all("SELECT * FROM presents WHERE user_id = ? ORDER BY received_at DESC", [req.params.id], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        // Map database snake_case/types to Frontend Interface
+        const mapped = rows.map(r => ({
+            id: r.id,
+            type: r.type,
+            amount: r.amount,
+            description: r.description,
+            receivedAt: r.received_at
+        }));
+        res.json(mapped);
+    });
+});
+
+app.post('/api/user/:id/presents/claim', (req, res) => {
+    const { userId, presentId } = req.body;
+    db.get("SELECT * FROM presents WHERE id = ? AND user_id = ?", [presentId, userId], (err, present) => {
+        if(!present) return res.status(404).json({error: "Present not found"});
+        
+        // Execute Claim Logic based on Type
+        if (present.type === 'MONEY') {
+            db.run("UPDATE users SET money = money + ? WHERE id = ?", [present.amount, userId]);
+        } else if (present.type === 'JEWEL') {
+            db.run("UPDATE users SET starJewels = starJewels + ? WHERE id = ?", [present.amount, userId]);
+        } else if (present.type === 'ITEM' || present.type === 'ITEM_STAMINA') {
+            const itemName = 'staminaDrink';
+             db.get("SELECT count FROM user_items WHERE user_id = ? AND item_name = ?", [userId, itemName], (err, iRow) => {
+                if (iRow) db.run("UPDATE user_items SET count = count + ? WHERE user_id = ? AND item_name = ?", [present.amount, userId, itemName]);
+                else db.run("INSERT INTO user_items VALUES (?, ?, ?)", [userId, itemName, present.amount]);
+             });
+        }
+        
+        // Delete present
+        db.run("DELETE FROM presents WHERE id = ?", [presentId], (err) => {
+            if(err) return res.status(500).json({error: "Delete failed"});
+            res.json({success: true});
+        });
+    });
+});
+
+app.get('/api/announcements', (req, res) => {
+    db.all("SELECT * FROM announcements ORDER BY date DESC", [], (err, rows) => {
+         if (err) return res.status(500).json({ error: err.message });
+         res.json(rows);
+    });
 });
 
 app.listen(PORT, () => {

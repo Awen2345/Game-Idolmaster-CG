@@ -7,18 +7,22 @@ import Commu from './components/Commu';
 import Shop from './components/Shop';
 import EventCenter from './components/EventCenter';
 import Auth from './components/Auth';
+import PresentBox from './components/PresentBox';
+import AnnouncementModal from './components/AnnouncementModal';
 import { useGameEngine } from './services/gameService';
 
 const App: React.FC = () => {
   const { 
-    userId, user, idols, event, 
+    userId, user, idols, event, presents, announcements,
     login, register, logout, 
     useItem, pullGacha, retireIdols, trainIdol, buyItem, doEventWork,
-    fetchChapters, fetchDialogs, saveFanmadeStory, uploadSprite, fetchUserSprites,
+    fetchChapters, fetchDialogs, saveFanmadeStory, uploadSprite, fetchUserSprites, redeemPromoCode, claimPresent,
     error 
   } = useGameEngine();
   
   const [activeTab, setActiveTab] = useState('HOME');
+  const [showPresents, setShowPresents] = useState(false);
+  const [showNews, setShowNews] = useState(false);
 
   const handleBuy = (item: string, cost: number) => {
       buyItem(item, cost);
@@ -48,8 +52,9 @@ const App: React.FC = () => {
     switch (activeTab) {
       case 'HOME':
         return (
-          <div className="p-4 text-center space-y-6">
-            <div className="bg-white/10 rounded-xl p-6 backdrop-blur-md border border-white/20 mt-10 shadow-xl">
+          <div className="p-4 text-center space-y-6 relative h-full flex flex-col">
+            {/* Top Info Banner */}
+            <div className="bg-white/10 rounded-xl p-6 backdrop-blur-md border border-white/20 mt-4 shadow-xl relative z-10">
                 <h2 className="text-3xl font-bold mb-2">Welcome, {user.name}!</h2>
                 <div className="text-gray-300 text-sm flex flex-col gap-1">
                    {event && event.isActive ? (
@@ -62,15 +67,47 @@ const App: React.FC = () => {
                 </div>
             </div>
             
+            {/* Utility Buttons Row */}
+            <div className="flex justify-center gap-6 z-20">
+                <div className="relative">
+                    <button 
+                        onClick={() => setShowNews(true)}
+                        className="w-14 h-14 bg-blue-600 rounded-full flex items-center justify-center shadow-lg border-2 border-white/30 hover:scale-110 transition-transform"
+                    >
+                        <i className="fas fa-bullhorn text-xl text-white"></i>
+                    </button>
+                    {/* Badge hardcoded for demo, usually checks 'read' status */}
+                    <div className="absolute top-0 right-0 w-4 h-4 bg-red-500 rounded-full border border-white"></div>
+                    <span className="text-[10px] font-bold mt-1 block drop-shadow-md">News</span>
+                </div>
+
+                <div className="relative">
+                    <button 
+                        onClick={() => setShowPresents(true)}
+                        className="w-14 h-14 bg-pink-600 rounded-full flex items-center justify-center shadow-lg border-2 border-white/30 hover:scale-110 transition-transform"
+                    >
+                        <i className="fas fa-gift text-xl text-white"></i>
+                    </button>
+                    {presents.length > 0 && (
+                        <div className="absolute top-0 right-0 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full border border-white flex items-center justify-center">
+                            {presents.length}
+                        </div>
+                    )}
+                    <span className="text-[10px] font-bold mt-1 block drop-shadow-md">Presents</span>
+                </div>
+            </div>
+
             {/* Featured Idol (Secretary) */}
-            <div className="relative w-full aspect-[3/4] max-w-xs mx-auto mt-4 rounded-xl overflow-hidden shadow-2xl border-4 border-pink-500/50 group cursor-pointer">
-                <img 
-                    src={idols.length > 0 ? idols[0].image : "https://picsum.photos/seed/placeholder/400/600"} 
-                    alt="Secretary" 
-                    className="w-full h-full object-cover transform transition duration-1000 group-hover:scale-105"
-                />
-                <div className="absolute bottom-4 left-0 w-full text-center bg-black/60 py-2 backdrop-blur-sm">
-                    <p className="font-bold text-white">"{idols.length > 0 ? idols[0].name : "Let's scout some idols!"}"</p>
+            <div className="flex-1 flex items-center justify-center pb-10">
+                <div className="relative w-full aspect-[3/4] max-w-xs mx-auto rounded-xl overflow-hidden shadow-2xl border-4 border-pink-500/50 group cursor-pointer hover:border-pink-400 transition-colors">
+                    <img 
+                        src={idols.length > 0 ? idols[0].image : "https://picsum.photos/seed/placeholder/400/600"} 
+                        alt="Secretary" 
+                        className="w-full h-full object-cover transform transition duration-1000 group-hover:scale-105"
+                    />
+                    <div className="absolute bottom-0 w-full bg-gradient-to-t from-black/80 to-transparent pt-10 pb-4 text-center">
+                        <p className="font-bold text-white text-lg drop-shadow-lg">"{idols.length > 0 ? idols[0].name : "Let's scout some idols!"}"</p>
+                    </div>
                 </div>
             </div>
           </div>
@@ -107,16 +144,22 @@ const App: React.FC = () => {
   };
 
   return (
-    <Layout 
-      user={user} 
-      activeTab={activeTab} 
-      onTabChange={setActiveTab} 
-      onUseItem={useItem} 
-      onLogout={logout}
-      isEventActive={event?.isActive}
-    >
-      {renderContent()}
-    </Layout>
+    <>
+        <Layout 
+            user={user} 
+            activeTab={activeTab} 
+            onTabChange={setActiveTab} 
+            onUseItem={useItem} 
+            onLogout={logout}
+            isEventActive={event?.isActive}
+            onRedeem={redeemPromoCode}
+        >
+            {renderContent()}
+        </Layout>
+
+        {showPresents && <PresentBox presents={presents} onClaim={claimPresent} onClose={() => setShowPresents(false)} />}
+        {showNews && <AnnouncementModal announcements={announcements} onClose={() => setShowNews(false)} />}
+    </>
   );
 };
 

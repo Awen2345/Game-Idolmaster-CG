@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { UserState, Idol, EventData, Chapter, DialogLine, UserSprite } from '../types';
+import { UserState, Idol, EventData, Chapter, DialogLine, UserSprite, Present, Announcement } from '../types';
 
 const API_URL = '/api';
 
@@ -26,6 +26,8 @@ export const useGameEngine = () => {
   const [event, setEvent] = useState<EventData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [presents, setPresents] = useState<Present[]>([]);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
 
   const login = async (u: string, p: string) => {
     try {
@@ -84,6 +86,15 @@ export const useGameEngine = () => {
       } else {
           setEvent(null);
       }
+
+      // Fetch Presents
+      const presentsRes = await fetch(`${API_URL}/user/${userId}/presents`);
+      setPresents(await presentsRes.json());
+
+      // Fetch Announcements
+      const newsRes = await fetch(`${API_URL}/announcements`);
+      setAnnouncements(await newsRes.json());
+
       setError(null);
     } catch (e: any) {
       console.error("Fetch error", e);
@@ -272,9 +283,47 @@ export const useGameEngine = () => {
       }
   };
 
+  const redeemPromoCode = async (code: string) => {
+      if (!userId) return { success: false, message: "Not logged in" };
+      try {
+          const res = await fetch(`${API_URL}/promo/redeem`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ userId, code })
+          });
+          const data = await res.json();
+          if (data.success) {
+              fetchData(); // Refresh to see present
+              return { success: true, message: data.message };
+          }
+          return { success: false, message: data.error };
+      } catch(e) {
+          return { success: false, message: "Server Error" };
+      }
+  };
+
+  const claimPresent = async (presentId: number) => {
+      if (!userId) return false;
+      try {
+          const res = await fetch(`${API_URL}/user/${userId}/presents/claim`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ userId, presentId })
+          });
+          const data = await res.json();
+          if(data.success) {
+              setPresents(prev => prev.filter(p => p.id !== presentId));
+              fetchData(); // Refresh user balance
+              return true;
+          }
+      } catch (e) { console.error(e); }
+      return false;
+  };
+
   return {
-    userId, user, idols, event, loading, error,
+    userId, user, idols, event, loading, error, presents, announcements,
     login, register, logout, useItem, pullGacha, retireIdols, trainIdol, buyItem, doEventWork,
-    fetchChapters, fetchDialogs, saveFanmadeStory, uploadSprite, fetchUserSprites
+    fetchChapters, fetchDialogs, saveFanmadeStory, uploadSprite, fetchUserSprites, redeemPromoCode,
+    claimPresent
   };
 };

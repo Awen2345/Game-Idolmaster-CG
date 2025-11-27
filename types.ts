@@ -106,3 +106,19 @@ export interface Song {
   url: string;
   cover: string;
 }
+
+export interface Present {
+    id: number;
+    type: 'MONEY' | 'JEWEL' | 'ITEM_STAMINA' | 'ITEM_TICKET';
+    amount: number;
+    description: string;
+    receivedAt: number;
+}
+
+export interface Announcement {
+    id: number;
+    title: string;
+    content: string;
+    date: number;
+    bannerUrl?: string;
+}
