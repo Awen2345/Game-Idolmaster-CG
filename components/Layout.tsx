@@ -13,9 +13,10 @@ interface LayoutProps {
   onLogout: () => void;
   isEventActive?: boolean;
   onOpenPromo?: () => void;
+  onOpenBattle?: () => void; // New Prop
 }
 
-const Layout: React.FC<LayoutProps> = ({ user, children, activeTab, onTabChange, onUseItem, onLogout, isEventActive, onOpenPromo }) => {
+const Layout: React.FC<LayoutProps> = ({ user, children, activeTab, onTabChange, onUseItem, onLogout, isEventActive, onOpenPromo, onOpenBattle }) => {
   const [isMusicOpen, setIsMusicOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -84,11 +85,11 @@ const Layout: React.FC<LayoutProps> = ({ user, children, activeTab, onTabChange,
               <div className="bg-gray-800 rounded-t-2xl p-6 grid grid-cols-4 gap-4 m-2 border border-gray-600" onClick={e => e.stopPropagation()}>
                   <MenuIcon icon="shopping-cart" label="Shop" color="bg-yellow-600" onClick={() => handleTabClick('SHOP')} />
                   <MenuIcon icon="music" label="Music" color="bg-pink-600" onClick={() => { setIsMusicOpen(true); setIsMenuOpen(false); }} />
+                  <MenuIcon icon="fist-raised" label="Battle" color="bg-red-600" onClick={() => { if(onOpenBattle) onOpenBattle(); setIsMenuOpen(false); }} />
                   <MenuIcon icon="user-circle" label="Profile" color="bg-blue-600" onClick={() => alert("Profile Coming Soon")} />
-                  <MenuIcon icon="box-open" label="Items" color="bg-green-600" onClick={() => alert("Inventory Coming Soon")} />
                   
                   {isEventActive && (
-                      <MenuIcon icon="trophy" label="Event" color="bg-red-600" onClick={() => handleTabClick('EVENT')} />
+                      <MenuIcon icon="trophy" label="Event" color="bg-purple-600" onClick={() => handleTabClick('EVENT')} />
                   )}
               </div>
           </div>

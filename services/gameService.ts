@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { UserState, Idol, EventData, Chapter, DialogLine, UserSprite, Present, Announcement } from '../types';
+import { UserState, Idol, EventData, Chapter, DialogLine, UserSprite, Present, Announcement, BattleOpponent, BattleResult } from '../types';
 
 const API_URL = '/api';
 
@@ -229,7 +229,6 @@ export const useGameEngine = () => {
           const res = await fetch(`${API_URL}/fan/chapters`);
           return await res.json();
       }
-      // Pass userId to check read status
       const res = await fetch(`${API_URL}/commu/chapters?type=${type}&userId=${userId}`);
       return await res.json();
   };
@@ -332,10 +331,54 @@ export const useGameEngine = () => {
       return false;
   };
 
+  // --- BATTLE SERVICES ---
+  
+  const fetchDeck = async (): Promise<string[]> => {
+      if(!userId) return [];
+      const res = await fetch(`${API_URL}/user/${userId}/deck`);
+      return await res.json();
+  };
+
+  const saveDeck = async (cardIds: string[]) => {
+      if(!userId) return false;
+      await fetch(`${API_URL}/deck`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, cardIds })
+      });
+      return true;
+  };
+
+  const findOpponent = async (mode: 'BOT' | 'PVP'): Promise<BattleOpponent | null> => {
+      if(!userId) return null;
+      try {
+          const res = await fetch(`${API_URL}/battle/match/${userId}?mode=${mode}`);
+          return await res.json();
+      } catch(e) { console.error(e); return null; }
+  };
+
+  const completeBattle = async (won: boolean): Promise<BattleResult | null> => {
+      if(!userId) return null;
+      try {
+          const res = await fetch(`${API_URL}/battle/finish`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ userId, won })
+          });
+          const data = await res.json();
+          if(data.success) {
+              fetchData(); // Refresh user rewards
+              return { won, playerScore: 0, opponentScore: 0, rewards: data.rewards };
+          }
+      } catch(e) { console.error(e); }
+      return null;
+  };
+
   return {
     userId, user, idols, event, loading, error, presents, announcements,
     login, register, logout, useItem, pullGacha, retireIdols, trainIdol, buyItem, doEventWork,
     fetchChapters, fetchDialogs, markChapterRead, saveFanmadeStory, uploadSprite, fetchUserSprites, redeemPromoCode,
-    claimPresent
+    claimPresent,
+    fetchDeck, saveDeck, findOpponent, completeBattle
   };
 };

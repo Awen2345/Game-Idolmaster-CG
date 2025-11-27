@@ -122,3 +122,29 @@ export interface Announcement {
     date: number;
     bannerUrl?: string;
 }
+
+// --- BATTLE TYPES ---
+
+export interface BattleOpponent {
+    name: string;
+    level: number;
+    isBot: boolean;
+    cards: {
+        name: string;
+        image: string;
+        rarity: Rarity;
+        totalStats: number; // Vo + Da + Vi
+    }[];
+    totalPower: number;
+}
+
+export interface BattleResult {
+    won: boolean;
+    playerScore: number;
+    opponentScore: number;
+    rewards: {
+        exp: number;
+        money: number;
+        jewels: number;
+    }
+}

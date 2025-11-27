@@ -87,7 +87,7 @@ db.serialize(() => {
     reward_amount INTEGER
   )`);
 
-  // 8. Story Chapters (Legacy - now mostly used for ID tracking if needed, primarily config.json)
+  // 8. Story Chapters (Legacy)
   db.run(`CREATE TABLE IF NOT EXISTS chapters (
     id TEXT PRIMARY KEY,
     type TEXT,
@@ -139,7 +139,7 @@ db.serialize(() => {
     url TEXT
   )`);
 
-  // 13. Promo Codes (Legacy Table - Config now in JSON)
+  // 13. Promo Codes
   db.run(`CREATE TABLE IF NOT EXISTS promo_codes (
     code TEXT PRIMARY KEY,
     type TEXT,
@@ -149,7 +149,7 @@ db.serialize(() => {
     end_time INTEGER
   )`);
 
-  // 14. Promo Usage (Critical for tracking who used JSON codes)
+  // 14. Promo Usage
   db.run(`CREATE TABLE IF NOT EXISTS promo_usage (
     user_id INTEGER,
     code TEXT,
@@ -157,7 +157,7 @@ db.serialize(() => {
     PRIMARY KEY (user_id, code)
   )`);
 
-  // 15. Presents / Gift Box
+  // 15. Presents
   db.run(`CREATE TABLE IF NOT EXISTS presents (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER,
@@ -184,9 +184,16 @@ db.serialize(() => {
     PRIMARY KEY (user_id, chapter_id)
   )`);
 
+  // 18. User Battle Decks (NEW)
+  db.run(`CREATE TABLE IF NOT EXISTS user_decks (
+    user_id INTEGER PRIMARY KEY,
+    slot1_id TEXT,
+    slot2_id TEXT,
+    slot3_id TEXT,
+    slot4_id TEXT
+  )`);
+
   // --- SEED DATA ---
-  
-  // Seed Event
   db.get("SELECT id FROM events WHERE id = 'evt_live_groove'", (err, row) => {
     if (!row) {
         const now = Date.now();
@@ -197,18 +204,13 @@ db.serialize(() => {
     }
   });
 
-  // Seed Announcements
   const now = Date.now();
   db.get("SELECT id FROM announcements", (err, row) => {
       if(!row) {
           db.run("INSERT INTO announcements (title, content, date, banner_url) VALUES (?, ?, ?, ?)", 
-            ["Welcome Producer!", "Thank you for playing the Web Version. Check out the new Live Groove event.", now, "https://hidamarirhodonite.kirara.ca/spread/100223.png"]);
-          db.run("INSERT INTO announcements (title, content, date, banner_url) VALUES (?, ?, ?, ?)", 
-            ["Maintenance Update", "We fixed some bugs regarding the Gacha animation.", now - 86400000, null]);
+            ["Live Battle Arena Open!", "Challenge other producers or train against bots to earn rewards!", now + 100, "https://hidamarirhodonite.kirara.ca/spread/100523.png"]);
       }
   });
-  
-  // NOTE: Idol Templates are now fetched dynamically from Starlight Stage API in server/index.js
 });
 
 module.exports = db;

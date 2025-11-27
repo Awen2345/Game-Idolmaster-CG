@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from './components/Layout';
 import Gacha from './components/Gacha';
 import IdolManager from './components/IdolManager';
@@ -10,6 +10,7 @@ import Auth from './components/Auth';
 import PresentBox from './components/PresentBox';
 import AnnouncementModal from './components/AnnouncementModal';
 import PromoModal from './components/PromoModal';
+import LiveBattle from './components/LiveBattle'; // Import Battle
 import { useGameEngine } from './services/gameService';
 
 const App: React.FC = () => {
@@ -18,6 +19,7 @@ const App: React.FC = () => {
     login, register, logout, 
     useItem, pullGacha, retireIdols, trainIdol, buyItem, doEventWork,
     fetchChapters, fetchDialogs, markChapterRead, saveFanmadeStory, uploadSprite, fetchUserSprites, redeemPromoCode, claimPresent,
+    fetchDeck, saveDeck, findOpponent, completeBattle, // Battle Services
     error 
   } = useGameEngine();
   
@@ -25,9 +27,21 @@ const App: React.FC = () => {
   const [showPresents, setShowPresents] = useState(false);
   const [showNews, setShowNews] = useState(false);
   const [showPromo, setShowPromo] = useState(false);
+  const [showBattle, setShowBattle] = useState(false); // Battle State
+  const [userDeckIds, setUserDeckIds] = useState<string[]>([]);
+
+  useEffect(() => {
+      if(showBattle && userId) {
+          fetchDeck().then(setUserDeckIds);
+      }
+  }, [showBattle, userId, fetchDeck]);
 
   const handleBuy = (item: string, cost: number) => {
       buyItem(item, cost);
+  };
+
+  const handleOpenBattle = () => {
+      setShowBattle(true);
   };
 
   const renderContent = () => {
@@ -166,6 +180,7 @@ const App: React.FC = () => {
                     onLogout={logout}
                     isEventActive={event?.isActive}
                     onOpenPromo={() => setShowPromo(true)}
+                    onOpenBattle={handleOpenBattle} // Hook up battle
                 >
                     {renderContent()}
                 </Layout>
@@ -173,6 +188,19 @@ const App: React.FC = () => {
                 {showPresents && <PresentBox presents={presents} onClaim={claimPresent} onClose={() => setShowPresents(false)} />}
                 {showNews && <AnnouncementModal announcements={announcements} onClose={() => setShowNews(false)} />}
                 <PromoModal isOpen={showPromo} onClose={() => setShowPromo(false)} onRedeem={redeemPromoCode} />
+                
+                {/* Battle Overlay */}
+                {showBattle && (
+                    <LiveBattle 
+                        userId={userId} 
+                        userDeckIds={userDeckIds}
+                        allIdols={idols}
+                        onFindOpponent={findOpponent}
+                        onCompleteBattle={completeBattle}
+                        onSaveDeck={saveDeck}
+                        onClose={() => setShowBattle(false)}
+                    />
+                )}
             </>
         )}
     </div>

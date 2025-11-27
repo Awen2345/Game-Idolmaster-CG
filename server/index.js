@@ -22,7 +22,6 @@ const CONFIG_PATH = path.join(__dirname, 'game_config.json');
 
 // --- IDOL DATA SYNC ---
 const syncIdolData = async () => {
-    // Check if we need to populate DB
     db.get("SELECT count(*) as count FROM idol_templates", async (err, row) => {
         if (err || (row && row.count > 0)) {
             console.log("Idol database already populated.");
@@ -31,8 +30,6 @@ const syncIdolData = async () => {
 
         console.log("Fetching Idol Data from Starlight Stage API...");
         try {
-             // Fetching a list of cards from kirara.ca
-             // We fetch N, R, SR, SSR base cards (rarity IDs: 1, 3, 5, 7)
              const response = await fetch("https://starlight.kirara.ca/api/v1/list/card_t?keys=id,name,rarity_dep,vocal_max,dance_max,visual_max");
              if (!response.ok) throw new Error("API Fetch failed");
              
@@ -44,12 +41,8 @@ const syncIdolData = async () => {
              const stmt = db.prepare("INSERT OR IGNORE INTO idol_templates VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
              
              let count = 0;
-             // We shuffle or pick a subset to avoid just getting the oldest cards, or just iterate.
-             // Starlight API returns them in ID order usually.
-             
              for (const card of cards) {
                  const rId = card.rarity_dep.rarity;
-                 // Filter for base forms only (N=1, R=3, SR=5, SSR=7)
                  if (![1, 3, 5, 7].includes(rId)) continue;
 
                  let rarity = 'N';
@@ -58,7 +51,6 @@ const syncIdolData = async () => {
                  if (rId === 5) { rarity = 'SR'; maxLevel = 70; }
                  if (rId === 7) { rarity = 'SSR'; maxLevel = 90; }
 
-                 // Use the high quality card spread image
                  const image = `https://hidamarirhodonite.kirara.ca/card/${card.id}.png`;
 
                  stmt.run(
@@ -72,7 +64,6 @@ const syncIdolData = async () => {
                      card.visual_max
                  );
                  count++;
-                 // Limit initial population to 300 to keep startup fast, but plenty for gacha
                  if (count >= 300) break; 
              }
              stmt.finalize();
@@ -83,13 +74,11 @@ const syncIdolData = async () => {
     });
 };
 
-// --- HELPER TO READ CONFIG ---
 const getGameConfig = () => {
     try {
         const data = fs.readFileSync(CONFIG_PATH, 'utf8');
         return JSON.parse(data);
     } catch (e) {
-        console.error("Failed to load game config", e);
         return { chapters: [], promoCodes: [] };
     }
 };
@@ -110,6 +99,7 @@ const recalcStamina = (user) => {
 
 // --- ROUTES ---
 
+// ... (Auth and User routes unchanged) ...
 app.post('/api/auth/register', (req, res) => {
     const { username, password } = req.body;
     const now = Date.now();
@@ -121,7 +111,6 @@ app.post('/api/auth/register', (req, res) => {
                 const userId = this.lastID;
                 db.run(`INSERT INTO user_items VALUES (${userId}, 'staminaDrink', 3)`);
                 db.run(`INSERT INTO user_items VALUES (${userId}, 'trainerTicket', 5)`);
-                // Give Welcome Present
                 db.run("INSERT INTO presents (user_id, type, amount, description, received_at) VALUES (?, 'JEWEL', 500, 'Welcome Gift!', ?)", [userId, now]);
                 res.json({ success: true, userId });
             });
@@ -165,6 +154,145 @@ app.get('/api/user/:id/idols', (req, res) => {
     res.json(idols);
   });
 });
+
+// --- BATTLE & DECK ROUTES ---
+
+// Get User Deck
+app.get('/api/user/:id/deck', (req, res) => {
+    db.get("SELECT * FROM user_decks WHERE user_id = ?", [req.params.id], (err, row) => {
+        if (!row) return res.json([]);
+        const ids = [row.slot1_id, row.slot2_id, row.slot3_id, row.slot4_id].filter(Boolean);
+        res.json(ids);
+    });
+});
+
+// Save Deck
+app.post('/api/deck', (req, res) => {
+    const { userId, cardIds } = req.body; // Expect array of 4 IDs or nulls
+    const [s1, s2, s3, s4] = cardIds;
+    
+    db.get("SELECT user_id FROM user_decks WHERE user_id = ?", [userId], (err, row) => {
+        if (row) {
+            db.run("UPDATE user_decks SET slot1_id=?, slot2_id=?, slot3_id=?, slot4_id=? WHERE user_id=?", [s1, s2, s3, s4, userId]);
+        } else {
+            db.run("INSERT INTO user_decks (user_id, slot1_id, slot2_id, slot3_id, slot4_id) VALUES (?,?,?,?,?)", [userId, s1, s2, s3, s4]);
+        }
+        res.json({ success: true });
+    });
+});
+
+// Matchmaking
+app.get('/api/battle/match/:userId', (req, res) => {
+    const mode = req.query.mode || 'BOT'; // 'BOT' or 'PVP'
+    
+    if (mode === 'BOT') {
+        const botNames = ["P-San 902", "KiraraFan", "Producer X", "StaminaDrain", "RinP"];
+        const randomName = botNames[Math.floor(Math.random() * botNames.length)];
+        const randomLevel = Math.floor(Math.random() * 20) + 1;
+        
+        // Generate random 4 cards for bot
+        db.all("SELECT * FROM idol_templates ORDER BY RANDOM() LIMIT 4", (err, rows) => {
+            const cards = rows.map(r => ({
+                name: r.name,
+                image: r.image,
+                rarity: r.rarity,
+                totalStats: Math.floor((r.vocal + r.dance + r.visual) * (1 + (randomLevel * 0.05))) // Scale stats by level
+            }));
+            const totalPower = cards.reduce((sum, c) => sum + c.totalStats, 0);
+
+            res.json({
+                name: randomName,
+                level: randomLevel,
+                isBot: true,
+                cards: cards,
+                totalPower
+            });
+        });
+    } else {
+        // Simple PvP: Fetch a random user who has a deck and isn't me
+        const sql = `
+            SELECT u.name, u.level, ud.* 
+            FROM users u 
+            JOIN user_decks ud ON u.id = ud.user_id 
+            WHERE u.id != ? 
+            ORDER BY RANDOM() LIMIT 1
+        `;
+        db.get(sql, [req.params.userId], async (err, opponent) => {
+            if (!opponent) {
+                // Fallback to bot if no players found
+                return res.redirect(`/api/battle/match/${req.params.userId}?mode=BOT`);
+            }
+
+            // Fetch card details for opponent deck
+            const slots = [opponent.slot1_id, opponent.slot2_id, opponent.slot3_id, opponent.slot4_id].filter(Boolean);
+            if(slots.length === 0) return res.redirect(`/api/battle/match/${req.params.userId}?mode=BOT`);
+
+            // We need to fetch the specific user_idols stats (considering their level)
+            const placeholder = slots.map(()=>'?').join(',');
+            const cardSql = `
+                SELECT it.name, it.image, it.rarity, it.vocal, it.dance, it.visual, ui.level
+                FROM user_idols ui
+                JOIN idol_templates it ON ui.template_id = it.id
+                WHERE ui.id IN (${placeholder})
+            `;
+            
+            db.all(cardSql, slots, (err, cardsData) => {
+                const cards = cardsData.map(c => {
+                    const baseTotal = c.vocal + c.dance + c.visual;
+                    // Simple level scaling for demo: 5% per level
+                    const scaledTotal = Math.floor(baseTotal * (1 + (c.level - 1) * 0.05));
+                    return {
+                        name: c.name,
+                        image: c.image,
+                        rarity: c.rarity,
+                        totalStats: scaledTotal
+                    };
+                });
+                const totalPower = cards.reduce((sum, c) => sum + c.totalStats, 0);
+
+                res.json({
+                    name: opponent.name,
+                    level: opponent.level,
+                    isBot: false,
+                    cards,
+                    totalPower
+                });
+            });
+        });
+    }
+});
+
+app.post('/api/battle/finish', (req, res) => {
+    const { userId, won } = req.body;
+    const rewards = { exp: 0, money: 0, jewels: 0 };
+
+    if (won) {
+        rewards.exp = 20;
+        rewards.money = 1000;
+        rewards.jewels = 10;
+    } else {
+        rewards.exp = 5;
+        rewards.money = 100;
+    }
+
+    db.get("SELECT level, exp, maxExp FROM users WHERE id = ?", [userId], (err, user) => {
+        let newExp = user.exp + rewards.exp;
+        let newLevel = user.level;
+        let newMaxExp = user.maxExp;
+        if (newExp >= user.maxExp) {
+            newLevel++;
+            newExp = newExp - user.maxExp;
+            newMaxExp = Math.floor(newMaxExp * 1.1);
+        }
+
+        db.run("UPDATE users SET money = money + ?, starJewels = starJewels + ?, exp = ?, level = ?, maxExp = ? WHERE id = ?", 
+            [rewards.money, rewards.jewels, newExp, newLevel, newMaxExp, userId]);
+        
+        res.json({ success: true, rewards });
+    });
+});
+
+// ... (Other endpoints kept same) ...
 
 app.get('/api/event/active/:userId', (req, res) => {
     const userId = req.params.userId;
@@ -216,32 +344,16 @@ app.post('/api/event/work', (req, res) => {
     });
 });
 
-// --- REFACTORED COMMU / STORIES (JSON BASED) ---
-
 app.get('/api/commu/chapters', (req, res) => {
-    const { type, userId } = req.query; // Add userId to check read status
+    const { type, userId } = req.query;
     const config = getGameConfig();
-    
-    // Filter from JSON
     let chapters = config.chapters || [];
-    if (type) {
-        chapters = chapters.filter(c => c.type === type);
-    }
-    
-    // If no userId provided, return just chapters
-    if (!userId) {
-        return res.json(chapters.map(c => ({ ...c, isRead: false })));
-    }
-
-    // Check Read Status from DB
+    if (type) { chapters = chapters.filter(c => c.type === type); }
+    if (!userId) { return res.json(chapters.map(c => ({ ...c, isRead: false }))); }
     db.all("SELECT chapter_id FROM user_read_chapters WHERE user_id = ?", [userId], (err, readRows) => {
         if (err) return res.status(500).json({ error: err.message });
         const readIds = new Set(readRows.map(r => r.chapter_id));
-        
-        const response = chapters.map(c => ({
-            ...c,
-            isRead: readIds.has(c.id)
-        }));
+        const response = chapters.map(c => ({ ...c, isRead: readIds.has(c.id) }));
         res.json(response);
     });
 });
@@ -249,15 +361,7 @@ app.get('/api/commu/chapters', (req, res) => {
 app.get('/api/commu/dialogs/:chapterId', (req, res) => {
     const config = getGameConfig();
     const chapter = config.chapters.find(c => c.id === req.params.chapterId);
-    
-    if (chapter && chapter.dialogs) {
-        res.json(chapter.dialogs);
-    } else {
-        // Fallback to legacy DB for old compatibility if needed, or return empty
-        db.all("SELECT * FROM dialogs WHERE chapter_id = ? ORDER BY sort_order ASC", [req.params.chapterId], (err, rows) => { 
-            res.json(rows || []); 
-        });
-    }
+    if (chapter && chapter.dialogs) { res.json(chapter.dialogs); } else { db.all("SELECT * FROM dialogs WHERE chapter_id = ? ORDER BY sort_order ASC", [req.params.chapterId], (err, rows) => { res.json(rows || []); }); }
 });
 
 app.post('/api/commu/read', (req, res) => {
@@ -267,8 +371,6 @@ app.post('/api/commu/read', (req, res) => {
         res.json({ success: true });
     });
 });
-
-// --- FANMADE STORIES ---
 
 app.get('/api/fan/chapters', (req, res) => {
     const sql = `SELECT fc.*, u.username as authorName FROM fan_chapters fc LEFT JOIN users u ON fc.user_id = u.id ORDER BY fc.created_at DESC`;
@@ -322,29 +424,21 @@ app.post('/api/gacha', (req, res) => {
     if (!row || row.starJewels < cost) return res.status(400).json({ error: "Not enough jewels" });
     const newJewels = row.starJewels - cost;
     db.run("UPDATE users SET starJewels = ? WHERE id = ?", [newJewels, userId]);
-    
-    // FETCH IDOLS FROM REAL DB
     db.all("SELECT * FROM idol_templates", (err, templates) => {
       if (!templates || templates.length === 0) return res.status(500).json({error: "Gacha Data Not Ready"});
-
       const pulledIdols = [];
       const stmt = db.prepare("INSERT INTO user_idols (id, user_id, template_id, level, isLocked) VALUES (?, ?, ?, 1, 0)");
-      
       const poolSSR = templates.filter(t => t.rarity === 'SSR');
       const poolSR = templates.filter(t => t.rarity === 'SR');
       const poolR = templates.filter(t => t.rarity === 'R');
       const poolN = templates.filter(t => t.rarity === 'N');
-
       for(let i=0; i<count; i++) {
         const rand = Math.random() * 100;
         let pool = poolN;
-        if (rand <= 3) pool = poolSSR; // 3% SSR
-        else if (rand <= 12) pool = poolSR; // 9% SR
-        else if (rand <= 90) pool = poolR; // R
-        
-        // Fallback if pool is empty (e.g. sync incomplete)
+        if (rand <= 3) pool = poolSSR;
+        else if (rand <= 12) pool = poolSR;
+        else if (rand <= 90) pool = poolR;
         if (pool.length === 0) pool = templates;
-
         const template = pool[Math.floor(Math.random() * pool.length)];
         const instanceId = `${Date.now()}-${i}-${Math.random().toString(36).substr(2, 5)}`;
         stmt.run(instanceId, userId, template.id);
@@ -395,27 +489,18 @@ app.post('/api/idol/retire', (req, res) => {
   });
 });
 
-// --- REFACTORED PROMO CODE (JSON BASED) ---
-
 app.post('/api/promo/redeem', (req, res) => {
     const { userId, code } = req.body;
     const now = Date.now();
     const config = getGameConfig();
-    
-    // 1. Find in JSON
     const promo = config.promoCodes.find(p => p.code === code);
-    
     if (!promo) return res.json({ success: false, error: "Invalid Code" });
     if (now < promo.startTime) return res.json({ success: false, error: "Code not yet active" });
     if (now > promo.endTime) return res.json({ success: false, error: "Code expired" });
 
-    // 2. Logic Check
     if (promo.isSingleUse) {
-        // Strict Check: Has user used this before?
         db.get("SELECT * FROM promo_usage WHERE user_id = ? AND code = ?", [userId, code], (err, usage) => {
             if (usage) return res.json({ success: false, error: "You already used this code" });
-            
-            // If Unique globally
             if (promo.type === 'UNIQUE') {
                 db.get("SELECT * FROM promo_usage WHERE code = ?", [code], (err, anyUsage) => {
                     if (anyUsage) return res.json({ success: false, error: "Code already claimed by someone else" });
@@ -426,7 +511,6 @@ app.post('/api/promo/redeem', (req, res) => {
             }
         });
     } else {
-        // Repeatable Code (Don't check DB for user usage, ignore UNIQUE type if set)
         applyReward(false);
     }
 
@@ -434,10 +518,8 @@ app.post('/api/promo/redeem', (req, res) => {
          if (shouldRecordUsage) {
              db.run("INSERT INTO promo_usage (user_id, code, used_at) VALUES (?, ?, ?)", [userId, code, now]);
          }
-         
          db.run("INSERT INTO presents (user_id, type, amount, description, received_at) VALUES (?, ?, ?, ?, ?)", 
             [userId, promo.rewardType, promo.rewardAmount, `Promo: ${code}`, now]);
-
          res.json({ success: true, message: "Reward sent to Present Box!" });
     }
 });
@@ -445,14 +527,7 @@ app.post('/api/promo/redeem', (req, res) => {
 app.get('/api/user/:id/presents', (req, res) => {
     db.all("SELECT * FROM presents WHERE user_id = ? ORDER BY received_at DESC", [req.params.id], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
-        // Map database snake_case/types to Frontend Interface
-        const mapped = rows.map(r => ({
-            id: r.id,
-            type: r.type,
-            amount: r.amount,
-            description: r.description,
-            receivedAt: r.received_at
-        }));
+        const mapped = rows.map(r => ({ id: r.id, type: r.type, amount: r.amount, description: r.description, receivedAt: r.received_at }));
         res.json(mapped);
     });
 });
@@ -461,21 +536,15 @@ app.post('/api/user/:id/presents/claim', (req, res) => {
     const { userId, presentId } = req.body;
     db.get("SELECT * FROM presents WHERE id = ? AND user_id = ?", [presentId, userId], (err, present) => {
         if(!present) return res.status(404).json({error: "Present not found"});
-        
-        // Execute Claim Logic based on Type
-        if (present.type === 'MONEY') {
-            db.run("UPDATE users SET money = money + ? WHERE id = ?", [present.amount, userId]);
-        } else if (present.type === 'JEWEL') {
-            db.run("UPDATE users SET starJewels = starJewels + ? WHERE id = ?", [present.amount, userId]);
-        } else if (present.type.includes('ITEM')) {
-            const itemName = 'staminaDrink'; // Simplified for demo, could be based on type map
+        if (present.type === 'MONEY') { db.run("UPDATE users SET money = money + ? WHERE id = ?", [present.amount, userId]); } 
+        else if (present.type === 'JEWEL') { db.run("UPDATE users SET starJewels = starJewels + ? WHERE id = ?", [present.amount, userId]); } 
+        else if (present.type.includes('ITEM')) {
+            const itemName = 'staminaDrink'; 
              db.get("SELECT count FROM user_items WHERE user_id = ? AND item_name = ?", [userId, itemName], (err, iRow) => {
                 if (iRow) db.run("UPDATE user_items SET count = count + ? WHERE user_id = ? AND item_name = ?", [present.amount, userId, itemName]);
                 else db.run("INSERT INTO user_items VALUES (?, ?, ?)", [userId, itemName, present.amount]);
              });
         }
-        
-        // Delete present
         db.run("DELETE FROM presents WHERE id = ?", [presentId], (err) => {
             if(err) return res.status(500).json({error: "Delete failed"});
             res.json({success: true});
