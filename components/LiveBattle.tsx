@@ -28,9 +28,13 @@ const LiveBattle: React.FC<LiveBattleProps> = ({ userId, userDeckIds, allIdols, 
     // Hydrate deck from props. This runs whenever App.tsx updates userDeckIds
     if (!userDeckIds || !allIdols) return;
     
-    const hydrated = userDeckIds
-        .map(id => allIdols.find(i => i.id === id))
-        .filter((i): i is Idol => !!i); // Type guard filter(Boolean)
+    // Safety check: Filter out nulls/undefineds
+    const safeDeckIds = Array.isArray(userDeckIds) ? userDeckIds : [];
+    const safeIdols = Array.isArray(allIdols) ? allIdols : [];
+
+    const hydrated = safeDeckIds
+        .map(id => safeIdols.find(i => i.id === id))
+        .filter((i): i is Idol => !!i);
         
     setPlayerDeck(hydrated);
   }, [userDeckIds, allIdols]);
@@ -106,7 +110,7 @@ const LiveBattle: React.FC<LiveBattleProps> = ({ userId, userDeckIds, allIdols, 
       return (
         <DeckBuilder 
             key={Date.now()} 
-            idols={allIdols} 
+            idols={Array.isArray(allIdols) ? allIdols : []} 
             currentDeckIds={userDeckIds} 
             onSave={saveDeck} 
             onClose={() => setPhase('MENU')} 
