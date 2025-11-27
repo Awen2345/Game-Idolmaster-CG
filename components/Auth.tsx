@@ -6,9 +6,8 @@ interface AuthProps {
   onRegister: (u: string, p: string) => Promise<boolean>;
 }
 
-// Menggunakan gambar placeholder yang sesuai dengan tema Idolmaster (New Generations)
-// Anda bisa mengganti URL ini dengan URL gambar yang Anda upload
-const COVER_IMAGE = "https://images6.alphacoders.com/600/600456.jpg"; 
+// Updated background image to the Cinderella Girls Horizontal Banner
+const COVER_IMAGE = "https://mediaproxy.tvtropes.org/width/1200/https://static.tvtropes.org/pmwiki/pub/images/imcg_horiz_banner.png"; 
 
 const Auth: React.FC<AuthProps> = ({ onLogin, onRegister }) => {
   const [isRegister, setIsRegister] = useState(false);
