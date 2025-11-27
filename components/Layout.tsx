@@ -1,6 +1,8 @@
+
 import React, { useState } from 'react';
 import { UserState } from '../types';
 import MusicPlayer from './MusicPlayer';
+import PromoModal from './PromoModal';
 
 interface LayoutProps {
   user: UserState;
@@ -15,15 +17,7 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ user, children, activeTab, onTabChange, onUseItem, onLogout, isEventActive, onRedeem }) => {
   const [isMusicOpen, setIsMusicOpen] = useState(false);
-
-  const handleRedeemClick = async () => {
-    if (!onRedeem) return;
-    const code = prompt("Enter Promo Code:");
-    if (code) {
-        const result = await onRedeem(code);
-        alert(result.message);
-    }
-  };
+  const [isPromoOpen, setIsPromoOpen] = useState(false);
 
   return (
     <div className="flex flex-col h-screen bg-gray-900 text-white overflow-hidden max-w-md mx-auto shadow-2xl relative border-x border-gray-700">
@@ -32,11 +26,6 @@ const Layout: React.FC<LayoutProps> = ({ user, children, activeTab, onTabChange,
         <div className="flex justify-between items-center mb-1">
           <div className="flex items-center gap-2">
               <span className="font-bold text-sm">Lv.{user.level} {user.name}</span>
-              {onRedeem && (
-                <button onClick={handleRedeemClick} className="text-[10px] bg-blue-500/50 px-1 rounded hover:bg-blue-500" title="Redeem Code">
-                    <i className="fas fa-ticket-alt"></i>
-                </button>
-              )}
               <button onClick={onLogout} className="text-[10px] bg-red-500/50 px-1 rounded hover:bg-red-500"><i className="fas fa-sign-out-alt"></i></button>
           </div>
           <div className="flex items-center gap-2">
@@ -67,9 +56,30 @@ const Layout: React.FC<LayoutProps> = ({ user, children, activeTab, onTabChange,
       <div className="flex-1 overflow-y-auto overflow-x-hidden relative bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]">
         {children}
       </div>
+      
+      {/* Floating Promo Button (Bottom Left) */}
+      {onRedeem && (
+        <div className="absolute bottom-4 left-4 z-30">
+            <button 
+                onClick={() => setIsPromoOpen(true)}
+                className="w-12 h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(250,204,21,0.5)] border-2 border-white/50 hover:scale-110 transition-transform animate-bounce-slow group"
+                title="Promo Code"
+            >
+                <i className="fas fa-ticket-alt text-white text-xl drop-shadow-md group-hover:rotate-12 transition-transform"></i>
+            </button>
+        </div>
+      )}
 
-      {/* Global Music Player Overlay (Controlled by Layout State) */}
+      {/* Overlays */}
       <MusicPlayer isOpen={isMusicOpen} onClose={() => setIsMusicOpen(false)} />
+      
+      {onRedeem && (
+        <PromoModal 
+            isOpen={isPromoOpen} 
+            onClose={() => setIsPromoOpen(false)} 
+            onRedeem={onRedeem} 
+        />
+      )}
 
       {/* Bottom Navigation */}
       <div className="bg-gray-800 border-t border-gray-700 p-1 flex justify-between items-center h-16 shrink-0 z-50 relative">

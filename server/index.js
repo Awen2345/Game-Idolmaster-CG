@@ -271,16 +271,18 @@ app.post('/api/promo/redeem', (req, res) => {
     const { userId, code } = req.body;
     const now = Date.now();
     db.get("SELECT * FROM promo_codes WHERE code = ?", [code], (err, promo) => {
-        if (!promo) return res.status(400).json({ error: "Invalid Code" });
-        if (now < promo.start_time || now > promo.end_time) return res.status(400).json({ error: "Code Expired or Not Started" });
+        if (!promo) return res.json({ success: false, error: "Invalid Code" });
+        
+        if (now < promo.start_time) return res.json({ success: false, error: "Code not yet active" });
+        if (now > promo.end_time) return res.json({ success: false, error: "Code expired" });
 
         db.get("SELECT * FROM promo_usage WHERE user_id = ? AND code = ?", [userId, code], (err, usage) => {
-            if (usage) return res.status(400).json({ error: "Already used" });
+            if (usage) return res.json({ success: false, error: "You already used this code" });
 
             // If Unique code, check if ANYONE has used it
             if (promo.type === 'UNIQUE') {
                 db.get("SELECT * FROM promo_usage WHERE code = ?", [code], (err, anyUsage) => {
-                    if (anyUsage) return res.status(400).json({ error: "Code already claimed by someone else" });
+                    if (anyUsage) return res.json({ success: false, error: "Code already claimed by someone else" });
                     applyReward();
                 });
             } else {
@@ -289,10 +291,6 @@ app.post('/api/promo/redeem', (req, res) => {
 
             function applyReward() {
                  db.run("INSERT INTO promo_usage (user_id, code, used_at) VALUES (?, ?, ?)", [userId, code, now]);
-                 
-                 // Instead of giving directly, put in Presents Box
-                 let itemName = '';
-                 if (promo.reward_type === 'ITEM') itemName = 'Stamina Drink';
                  
                  db.run("INSERT INTO presents (user_id, type, amount, description, received_at) VALUES (?, ?, ?, ?, ?)", 
                     [userId, promo.reward_type, promo.reward_amount, `Promo: ${code}`, now]);

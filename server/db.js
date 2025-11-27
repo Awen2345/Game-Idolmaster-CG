@@ -190,14 +190,21 @@ db.serialize(() => {
   });
 
   // Seed Promo Codes
+  const now = Date.now();
+  // Valid Public Code (Multi-user, single use per user)
   db.run(`INSERT OR IGNORE INTO promo_codes VALUES ('WELCOME2024', 'PUBLIC', 'JEWEL', 2500, 0, 9999999999999)`);
-  db.run(`INSERT OR IGNORE INTO promo_codes VALUES ('STARTERPACK', 'PUBLIC', 'ITEM', 5, 0, 9999999999999)`); // 5 Stamina Drinks
+  // Valid Item Code
+  db.run(`INSERT OR IGNORE INTO promo_codes VALUES ('STARTERPACK', 'PUBLIC', 'ITEM', 5, 0, 9999999999999)`);
+  // Unique Code (Global single use)
   db.run(`INSERT OR IGNORE INTO promo_codes VALUES ('UNIQUE123', 'UNIQUE', 'MONEY', 50000, 0, 9999999999999)`);
+  // Expired Code
+  db.run(`INSERT OR IGNORE INTO promo_codes VALUES ('OLD2023', 'PUBLIC', 'JEWEL', 100, 0, ${now - 10000})`);
+  // Future Code
+  db.run(`INSERT OR IGNORE INTO promo_codes VALUES ('FUTURE', 'PUBLIC', 'JEWEL', 5000, ${now + 86400000}, 9999999999999)`);
 
   // Seed Announcements
   db.get("SELECT id FROM announcements", (err, row) => {
       if(!row) {
-          const now = Date.now();
           db.run("INSERT INTO announcements (title, content, date, banner_url) VALUES (?, ?, ?, ?)", 
             ["Welcome Producer!", "Thank you for playing the Web Version. Check out the new Live Groove event.", now, "https://picsum.photos/seed/news1/600/200"]);
           db.run("INSERT INTO announcements (title, content, date, banner_url) VALUES (?, ?, ?, ?)", 
