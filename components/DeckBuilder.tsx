@@ -5,17 +5,20 @@ import { Idol, Rarity } from '../types';
 interface DeckBuilderProps {
   idols: Idol[];
   currentDeckIds: string[];
-  onSave: (ids: string[]) => void;
+  onSave: (ids: string[]) => Promise<void>; // Ensure it's async promise
   onClose: () => void;
 }
 
 const DeckBuilder: React.FC<DeckBuilderProps> = ({ idols, currentDeckIds, onSave, onClose }) => {
   // Store only IDs locally to prevent resets when 'idols' prop updates in background
   const [slots, setSlots] = useState<(string | null)[]>([null, null, null, null]);
+  const [isDirty, setIsDirty] = useState(false); // Track if user has modified deck
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    // Only initialize/reset when currentDeckIds changes (e.g. initial load or save complete)
-    // We EXCLUDE 'idols' from dependency array so background data refreshes don't wipe user work
+    // Only initialize/reset when currentDeckIds changes (e.g. initial load) AND user hasn't touched anything yet
+    if (isDirty) return;
+
     const newSlots = [null, null, null, null] as (string | null)[];
     if (currentDeckIds && currentDeckIds.length > 0) {
         currentDeckIds.forEach((id, idx) => {
@@ -23,9 +26,10 @@ const DeckBuilder: React.FC<DeckBuilderProps> = ({ idols, currentDeckIds, onSave
         });
     }
     setSlots(newSlots);
-  }, [currentDeckIds]);
+  }, [currentDeckIds, isDirty]);
 
   const toggleIdol = (idolId: string) => {
+    setIsDirty(true); // Mark as modified
     // Check if already in deck
     const existingIndex = slots.findIndex(id => id === idolId);
     
@@ -47,7 +51,7 @@ const DeckBuilder: React.FC<DeckBuilderProps> = ({ idols, currentDeckIds, onSave
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
       // Filter out nulls and send array of IDs
       const activeIds = slots.filter(s => s !== null) as string[];
       
@@ -55,7 +59,9 @@ const DeckBuilder: React.FC<DeckBuilderProps> = ({ idols, currentDeckIds, onSave
           if(!confirm(`You have only selected ${activeIds.length} idols. Are you sure?`)) return;
       }
       
-      onSave(activeIds);
+      setIsSaving(true);
+      await onSave(activeIds);
+      setIsSaving(false);
   };
 
   // Helper to find idol object by ID
@@ -106,17 +112,25 @@ const DeckBuilder: React.FC<DeckBuilderProps> = ({ idols, currentDeckIds, onSave
         </div>
 
         {/* Action Bar */}
-        <div className="p-3 flex justify-center bg-gray-800 shrink-0 border-b border-gray-700">
+        <div className="p-3 flex flex-col gap-2 justify-center bg-gray-800 shrink-0 border-b border-gray-700">
             <button 
                 onClick={handleSave}
-                className="bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white px-10 py-2 rounded-full font-bold shadow-lg transition-transform active:scale-95 flex items-center gap-2"
+                disabled={isSaving}
+                className="bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white px-10 py-3 rounded-full font-bold shadow-lg transition-transform active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
             >
-                <i className="fas fa-save"></i> Confirm Deck
+                {isSaving ? <i className="fas fa-spinner animate-spin"></i> : <i className="fas fa-save"></i>} 
+                Confirm Deck
+            </button>
+            <button 
+                onClick={onClose}
+                className="text-gray-400 text-xs hover:text-white underline"
+            >
+                Cancel / Return without saving
             </button>
         </div>
 
         {/* Idol List */}
-        <div className="flex-1 overflow-y-auto p-2 bg-gray-900 grid grid-cols-4 gap-2 content-start">
+        <div className="flex-1 overflow-y-auto p-2 bg-gray-900 grid grid-cols-4 gap-2 content-start pb-20">
             {idols.map(idol => {
                 const isSelected = slots.includes(idol.id);
                 return (

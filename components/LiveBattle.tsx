@@ -102,7 +102,16 @@ const LiveBattle: React.FC<LiveBattleProps> = ({ userId, userDeckIds, allIdols, 
   };
 
   if (phase === 'DECK') {
-      return <DeckBuilder idols={allIdols} currentDeckIds={userDeckIds} onSave={saveDeck} onClose={() => setPhase('MENU')} />;
+      // Key forces remount on open to clear internal state
+      return (
+        <DeckBuilder 
+            key={Date.now()} 
+            idols={allIdols} 
+            currentDeckIds={userDeckIds} 
+            onSave={saveDeck} 
+            onClose={() => setPhase('MENU')} 
+        />
+      );
   }
 
   // --- RENDER HELPERS ---
@@ -125,7 +134,7 @@ const LiveBattle: React.FC<LiveBattleProps> = ({ userId, userDeckIds, allIdols, 
               <div className="flex items-center justify-between w-full px-8 z-10">
                   <div className="text-left animate-[slideInLeft_1s]">
                       <h2 className="text-3xl font-black text-blue-400 italic">YOU</h2>
-                      <div className="text-white text-xl">Producer Lv.{Math.floor(Math.random()*10)+1}</div>
+                      <div className="text-white text-xl">Producer Lv.{Math.floor(Math.random() * 10) + 1}</div>
                       <div className="text-sm text-gray-300 mt-2">Power: {playerDeck.reduce((a,c)=>a+(c.vocal+c.dance+c.visual),0)}</div>
                   </div>
                   <div className="text-6xl font-black text-white italic drop-shadow-[0_0_10px_rgba(255,255,255,0.8)] animate-bounce">VS</div>

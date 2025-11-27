@@ -168,8 +168,12 @@ app.get('/api/user/:id/deck', (req, res) => {
 
 // Save Deck
 app.post('/api/deck', (req, res) => {
-    const { userId, cardIds } = req.body; // Expect array of 4 IDs or nulls
-    const [s1, s2, s3, s4] = cardIds;
+    const { userId, cardIds } = req.body; 
+    // Ensure array has 4 elements, fill with null if undefined
+    const safeIds = [...(cardIds || [])];
+    while(safeIds.length < 4) safeIds.push(null);
+    
+    const [s1, s2, s3, s4] = safeIds;
     
     db.get("SELECT user_id FROM user_decks WHERE user_id = ?", [userId], (err, row) => {
         if (row) {
