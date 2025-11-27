@@ -3,6 +3,7 @@
     {
       "code": "WELCOME2024",
       "type": "PUBLIC",
+      "isSingleUse": true,
       "rewardType": "JEWEL",
       "rewardAmount": 2500,
       "startTime": 0,
@@ -11,6 +12,7 @@
     {
       "code": "STARTERPACK",
       "type": "PUBLIC",
+      "isSingleUse": true,
       "rewardType": "ITEM_STAMINA",
       "rewardAmount": 5,
       "startTime": 0,
@@ -19,6 +21,7 @@
     {
       "code": "MONEYBAG",
       "type": "PUBLIC",
+      "isSingleUse": true,
       "rewardType": "MONEY",
       "rewardAmount": 50000,
       "startTime": 0,
@@ -27,8 +30,18 @@
     {
       "code": "SECRET",
       "type": "UNIQUE",
+      "isSingleUse": true,
       "rewardType": "JEWEL",
       "rewardAmount": 5000,
+      "startTime": 0,
+      "endTime": 9999999999999
+    },
+    {
+      "code": "INFINITE_STAMINA",
+      "type": "PUBLIC",
+      "isSingleUse": false,
+      "rewardType": "ITEM_STAMINA",
+      "rewardAmount": 1,
       "startTime": 0,
       "endTime": 9999999999999
     }

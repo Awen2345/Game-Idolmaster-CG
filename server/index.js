@@ -332,29 +332,37 @@ app.post('/api/promo/redeem', (req, res) => {
     if (now < promo.startTime) return res.json({ success: false, error: "Code not yet active" });
     if (now > promo.endTime) return res.json({ success: false, error: "Code expired" });
 
-    // 2. Check Usage in DB
-    db.get("SELECT * FROM promo_usage WHERE user_id = ? AND code = ?", [userId, code], (err, usage) => {
-        if (usage) return res.json({ success: false, error: "You already used this code" });
+    // 2. Logic Check
+    if (promo.isSingleUse) {
+        // Strict Check: Has user used this before?
+        db.get("SELECT * FROM promo_usage WHERE user_id = ? AND code = ?", [userId, code], (err, usage) => {
+            if (usage) return res.json({ success: false, error: "You already used this code" });
+            
+            // If Unique globally
+            if (promo.type === 'UNIQUE') {
+                db.get("SELECT * FROM promo_usage WHERE code = ?", [code], (err, anyUsage) => {
+                    if (anyUsage) return res.json({ success: false, error: "Code already claimed by someone else" });
+                    applyReward(true);
+                });
+            } else {
+                applyReward(true);
+            }
+        });
+    } else {
+        // Repeatable Code (Don't check DB for user usage, ignore UNIQUE type if set)
+        applyReward(false);
+    }
 
-        // If Unique code, check if ANYONE has used it
-        if (promo.type === 'UNIQUE') {
-            db.get("SELECT * FROM promo_usage WHERE code = ?", [code], (err, anyUsage) => {
-                if (anyUsage) return res.json({ success: false, error: "Code already claimed by someone else" });
-                applyReward();
-            });
-        } else {
-            applyReward();
-        }
-
-        function applyReward() {
+    function applyReward(shouldRecordUsage) {
+         if (shouldRecordUsage) {
              db.run("INSERT INTO promo_usage (user_id, code, used_at) VALUES (?, ?, ?)", [userId, code, now]);
-             
-             db.run("INSERT INTO presents (user_id, type, amount, description, received_at) VALUES (?, ?, ?, ?, ?)", 
-                [userId, promo.rewardType, promo.rewardAmount, `Promo: ${code}`, now]);
+         }
+         
+         db.run("INSERT INTO presents (user_id, type, amount, description, received_at) VALUES (?, ?, ?, ?, ?)", 
+            [userId, promo.rewardType, promo.rewardAmount, `Promo: ${code}`, now]);
 
-             res.json({ success: true, message: "Reward sent to Present Box!" });
-        }
-    });
+         res.json({ success: true, message: "Reward sent to Present Box!" });
+    }
 });
 
 app.get('/api/user/:id/presents', (req, res) => {
