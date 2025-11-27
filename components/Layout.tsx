@@ -2,7 +2,6 @@
 import React, { useState } from 'react';
 import { UserState } from '../types';
 import MusicPlayer from './MusicPlayer';
-import PromoModal from './PromoModal';
 
 interface LayoutProps {
   user: UserState;
@@ -12,12 +11,11 @@ interface LayoutProps {
   onUseItem: (type: 'staminaDrink' | 'trainerTicket') => void;
   onLogout: () => void;
   isEventActive?: boolean;
-  onRedeem?: (code: string) => Promise<{ success: boolean; message: string }>;
+  onOpenPromo?: () => void;
 }
 
-const Layout: React.FC<LayoutProps> = ({ user, children, activeTab, onTabChange, onUseItem, onLogout, isEventActive, onRedeem }) => {
+const Layout: React.FC<LayoutProps> = ({ user, children, activeTab, onTabChange, onUseItem, onLogout, isEventActive, onOpenPromo }) => {
   const [isMusicOpen, setIsMusicOpen] = useState(false);
-  const [isPromoOpen, setIsPromoOpen] = useState(false);
 
   return (
     <div className="flex flex-col h-screen bg-gray-900 text-white overflow-hidden max-w-md mx-auto shadow-2xl relative border-x border-gray-700">
@@ -58,10 +56,10 @@ const Layout: React.FC<LayoutProps> = ({ user, children, activeTab, onTabChange,
       </div>
       
       {/* Floating Promo Button (Bottom Left) */}
-      {onRedeem && (
+      {onOpenPromo && (
         <div className="absolute bottom-4 left-4 z-30">
             <button 
-                onClick={() => setIsPromoOpen(true)}
+                onClick={onOpenPromo}
                 className="w-12 h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(250,204,21,0.5)] border-2 border-white/50 hover:scale-110 transition-transform animate-bounce-slow group"
                 title="Promo Code"
             >
@@ -72,14 +70,6 @@ const Layout: React.FC<LayoutProps> = ({ user, children, activeTab, onTabChange,
 
       {/* Overlays */}
       <MusicPlayer isOpen={isMusicOpen} onClose={() => setIsMusicOpen(false)} />
-      
-      {onRedeem && (
-        <PromoModal 
-            isOpen={isPromoOpen} 
-            onClose={() => setIsPromoOpen(false)} 
-            onRedeem={onRedeem} 
-        />
-      )}
 
       {/* Bottom Navigation */}
       <div className="bg-gray-800 border-t border-gray-700 p-1 flex justify-between items-center h-16 shrink-0 z-50 relative">

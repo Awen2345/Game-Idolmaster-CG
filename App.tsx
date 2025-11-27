@@ -9,6 +9,7 @@ import EventCenter from './components/EventCenter';
 import Auth from './components/Auth';
 import PresentBox from './components/PresentBox';
 import AnnouncementModal from './components/AnnouncementModal';
+import PromoModal from './components/PromoModal';
 import { useGameEngine } from './services/gameService';
 
 const App: React.FC = () => {
@@ -23,6 +24,7 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('HOME');
   const [showPresents, setShowPresents] = useState(false);
   const [showNews, setShowNews] = useState(false);
+  const [showPromo, setShowPromo] = useState(false);
 
   const handleBuy = (item: string, cost: number) => {
       buyItem(item, cost);
@@ -95,6 +97,16 @@ const App: React.FC = () => {
                     )}
                     <span className="text-[10px] font-bold mt-1 block drop-shadow-md">Presents</span>
                 </div>
+
+                <div className="relative">
+                    <button 
+                        onClick={() => setShowPromo(true)}
+                        className="w-14 h-14 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center shadow-lg border-2 border-white/30 hover:scale-110 transition-transform"
+                    >
+                        <i className="fas fa-ticket-alt text-xl text-white"></i>
+                    </button>
+                    <span className="text-[10px] font-bold mt-1 block drop-shadow-md">Promo</span>
+                </div>
             </div>
 
             {/* Featured Idol (Secretary) */}
@@ -152,13 +164,14 @@ const App: React.FC = () => {
             onUseItem={useItem} 
             onLogout={logout}
             isEventActive={event?.isActive}
-            onRedeem={redeemPromoCode}
+            onOpenPromo={() => setShowPromo(true)}
         >
             {renderContent()}
         </Layout>
 
         {showPresents && <PresentBox presents={presents} onClaim={claimPresent} onClose={() => setShowPresents(false)} />}
         {showNews && <AnnouncementModal announcements={announcements} onClose={() => setShowNews(false)} />}
+        <PromoModal isOpen={showPromo} onClose={() => setShowPromo(false)} onRedeem={redeemPromoCode} />
     </>
   );
 };
