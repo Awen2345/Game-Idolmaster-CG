@@ -18,7 +18,7 @@ const PresentBox: React.FC<PresentBoxProps> = ({ presents, onClaim, onClose }) =
     };
 
     return (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 animate-fade-in">
+        <div className="absolute inset-0 z-50 bg-black/80 flex items-center justify-center p-4 animate-fade-in">
             <div className="bg-gray-800 w-full max-w-md rounded-xl border-2 border-pink-500 overflow-hidden shadow-2xl flex flex-col max-h-[80vh]">
                 <div className="bg-gradient-to-r from-pink-600 to-purple-600 p-4 flex justify-between items-center">
                     <h2 className="text-white font-black text-xl italic"><i className="fas fa-gift mr-2"></i> Present Box</h2>

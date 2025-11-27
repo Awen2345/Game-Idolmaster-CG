@@ -32,7 +32,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onRegister }) => {
   };
 
   return (
-    <div className="relative h-screen w-full flex flex-col items-center justify-center overflow-hidden bg-black font-sans">
+    <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center overflow-hidden bg-black font-sans z-50">
       {/* Background Image Layer */}
       <div 
         className="absolute inset-0 bg-cover bg-[center_top] bg-no-repeat transition-transform duration-[20s] ease-linear hover:scale-110"
@@ -43,7 +43,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onRegister }) => {
       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/30" />
 
       {/* Main Content */}
-      <div className="relative z-10 w-full max-w-md px-6 flex flex-col items-center justify-between h-full py-12">
+      <div className="relative z-10 w-full px-6 flex flex-col items-center justify-between h-full py-12">
         
         {/* Game Title Section */}
         <div className="mt-16 text-center animate-[fadeInDown_1s_ease-out]">

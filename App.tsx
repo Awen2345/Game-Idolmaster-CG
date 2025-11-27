@@ -30,10 +30,6 @@ const App: React.FC = () => {
       buyItem(item, cost);
   };
 
-  if (!userId) {
-      return <Auth onLogin={login} onRegister={register} />;
-  }
-
   const renderContent = () => {
     if (error) {
         return (
@@ -157,23 +153,29 @@ const App: React.FC = () => {
   };
 
   return (
-    <>
-        <Layout 
-            user={user} 
-            activeTab={activeTab} 
-            onTabChange={setActiveTab} 
-            onUseItem={useItem} 
-            onLogout={logout}
-            isEventActive={event?.isActive}
-            onOpenPromo={() => setShowPromo(true)}
-        >
-            {renderContent()}
-        </Layout>
+    <div className="max-w-md mx-auto h-screen relative overflow-hidden bg-black shadow-2xl border-x border-gray-800 font-sans">
+        {!userId ? (
+            <Auth onLogin={login} onRegister={register} />
+        ) : (
+            <>
+                <Layout 
+                    user={user} 
+                    activeTab={activeTab} 
+                    onTabChange={setActiveTab} 
+                    onUseItem={useItem} 
+                    onLogout={logout}
+                    isEventActive={event?.isActive}
+                    onOpenPromo={() => setShowPromo(true)}
+                >
+                    {renderContent()}
+                </Layout>
 
-        {showPresents && <PresentBox presents={presents} onClaim={claimPresent} onClose={() => setShowPresents(false)} />}
-        {showNews && <AnnouncementModal announcements={announcements} onClose={() => setShowNews(false)} />}
-        <PromoModal isOpen={showPromo} onClose={() => setShowPromo(false)} onRedeem={redeemPromoCode} />
-    </>
+                {showPresents && <PresentBox presents={presents} onClaim={claimPresent} onClose={() => setShowPresents(false)} />}
+                {showNews && <AnnouncementModal announcements={announcements} onClose={() => setShowNews(false)} />}
+                <PromoModal isOpen={showPromo} onClose={() => setShowPromo(false)} onRedeem={redeemPromoCode} />
+            </>
+        )}
+    </div>
   );
 };
 

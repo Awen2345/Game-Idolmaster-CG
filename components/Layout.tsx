@@ -25,9 +25,9 @@ const Layout: React.FC<LayoutProps> = ({ user, children, activeTab, onTabChange,
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-900 text-white overflow-hidden max-w-md mx-auto shadow-2xl relative border-x border-gray-700">
+    <div className="flex flex-col h-full w-full bg-gray-900 text-white overflow-hidden relative">
       {/* Header */}
-      <div className="bg-gradient-to-r from-pink-600 to-purple-700 p-2 shadow-md z-10">
+      <div className="bg-gradient-to-r from-pink-600 to-purple-700 p-2 shadow-md z-10 shrink-0">
         <div className="flex justify-between items-center mb-1">
           <div className="flex items-center gap-2">
               <span className="font-bold text-sm">Lv.{user.level} {user.name}</span>

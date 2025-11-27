@@ -31,7 +31,7 @@ const PromoModal: React.FC<PromoModalProps> = ({ isOpen, onClose, onRedeem }) =>
     };
 
     return (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 animate-fade-in backdrop-blur-sm">
+        <div className="absolute inset-0 z-50 bg-black/80 flex items-center justify-center p-4 animate-fade-in backdrop-blur-sm">
             <div className="bg-gray-800 w-full max-w-sm rounded-xl overflow-hidden shadow-2xl border border-pink-500/30">
                 <div className="bg-gradient-to-r from-pink-600 to-purple-600 p-4 flex justify-between items-center">
                     <h2 className="text-white font-bold text-lg italic"><i className="fas fa-ticket-alt mr-2"></i> Redeem Code</h2>
