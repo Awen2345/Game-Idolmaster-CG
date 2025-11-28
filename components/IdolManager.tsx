@@ -101,7 +101,7 @@ const IdolManager: React.FC<IdolManagerProps> = ({
           <div className="w-1/3 relative bg-gradient-to-b from-blue-100 to-blue-200 border-r border-blue-300">
              <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-30"></div>
              <img 
-                src="https://hidamarirhodonite.kirara.ca/card/100065.png" // Placeholder Chihiro/Uzuki
+                src="https://imas.gamedbs.jp/cg/images_o/ui/navi/1452751597-103.png" // Specific Chihiro URL
                 className="absolute bottom-0 left-1/2 transform -translate-x-1/2 h-[90%] object-contain drop-shadow-xl"
                 alt="Secretary"
              />
