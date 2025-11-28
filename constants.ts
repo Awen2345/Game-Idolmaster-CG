@@ -12,61 +12,71 @@ export const MOCK_IDOLS_DB: Omit<Idol, 'id' | 'isLocked'>[] = [
     name: "Uzuki Shimamura", rarity: Rarity.SSR, level: 1, maxLevel: 90, 
     image: "https://hidamarirhodonite.kirara.ca/card/100065.png", 
     vocal: 50, dance: 40, visual: 60,
-    type: IdolType.CUTE, attack: 90, defense: 60, affection: 0, maxAffection: 100
+    type: IdolType.CUTE, attack: 90, defense: 60, affection: 0, maxAffection: 100,
+    starRank: 1, isAwakened: false
   },
   { 
     name: "Rin Shibuya", rarity: Rarity.SSR, level: 1, maxLevel: 90, 
     image: "https://hidamarirhodonite.kirara.ca/card/100067.png", 
     vocal: 45, dance: 45, visual: 65,
-    type: IdolType.COOL, attack: 93, defense: 62, affection: 0, maxAffection: 100
+    type: IdolType.COOL, attack: 93, defense: 62, affection: 0, maxAffection: 100,
+    starRank: 1, isAwakened: false
   },
   { 
     name: "Mio Honda", rarity: Rarity.SSR, level: 1, maxLevel: 90, 
     image: "https://hidamarirhodonite.kirara.ca/card/100069.png", 
     vocal: 60, dance: 40, visual: 40,
-    type: IdolType.PASSION, attack: 84, defense: 56, affection: 0, maxAffection: 100
+    type: IdolType.PASSION, attack: 84, defense: 56, affection: 0, maxAffection: 100,
+    starRank: 1, isAwakened: false
   },
   { 
     name: "Kaede Takagaki", rarity: Rarity.SR, level: 1, maxLevel: 70, 
     image: "https://hidamarirhodonite.kirara.ca/card/100109.png", 
     vocal: 40, dance: 30, visual: 50,
-    type: IdolType.COOL, attack: 72, defense: 48, affection: 0, maxAffection: 60
+    type: IdolType.COOL, attack: 72, defense: 48, affection: 0, maxAffection: 60,
+    starRank: 1, isAwakened: false
   },
   { 
     name: "Mika Jougasaki", rarity: Rarity.SR, level: 1, maxLevel: 70, 
     image: "https://hidamarirhodonite.kirara.ca/card/100057.png", 
     vocal: 45, dance: 35, visual: 45,
-    type: IdolType.PASSION, attack: 75, defense: 50, affection: 0, maxAffection: 60
+    type: IdolType.PASSION, attack: 75, defense: 50, affection: 0, maxAffection: 60,
+    starRank: 1, isAwakened: false
   },
   { 
     name: "Anzu Futaba", rarity: Rarity.R, level: 1, maxLevel: 40, 
     image: "https://hidamarirhodonite.kirara.ca/card/100007.png", 
     vocal: 20, dance: 20, visual: 20,
-    type: IdolType.CUTE, attack: 36, defense: 24, affection: 0, maxAffection: 40
+    type: IdolType.CUTE, attack: 36, defense: 24, affection: 0, maxAffection: 40,
+    starRank: 1, isAwakened: false
   },
   { 
     name: "Kirari Moroboshi", rarity: Rarity.R, level: 1, maxLevel: 40, 
     image: "https://hidamarirhodonite.kirara.ca/card/100015.png", 
     vocal: 25, dance: 25, visual: 15,
-    type: IdolType.PASSION, attack: 39, defense: 26, affection: 0, maxAffection: 40
+    type: IdolType.PASSION, attack: 39, defense: 26, affection: 0, maxAffection: 40,
+    starRank: 1, isAwakened: false
   },
   { 
     name: "Ranko Kanzaki", rarity: Rarity.N, level: 1, maxLevel: 20, 
     image: "https://hidamarirhodonite.kirara.ca/card/100031.png", 
     vocal: 10, dance: 10, visual: 10,
-    type: IdolType.COOL, attack: 18, defense: 12, affection: 0, maxAffection: 20
+    type: IdolType.COOL, attack: 18, defense: 12, affection: 0, maxAffection: 20,
+    starRank: 1, isAwakened: false
   },
   { 
     name: "Miku Maekawa", rarity: Rarity.N, level: 1, maxLevel: 20, 
     image: "https://hidamarirhodonite.kirara.ca/card/100021.png", 
     vocal: 10, dance: 12, visual: 8,
-    type: IdolType.CUTE, attack: 18, defense: 12, affection: 0, maxAffection: 20
+    type: IdolType.CUTE, attack: 18, defense: 12, affection: 0, maxAffection: 20,
+    starRank: 1, isAwakened: false
   },
   { 
     name: "Riina Tada", rarity: Rarity.N, level: 1, maxLevel: 20, 
     image: "https://hidamarirhodonite.kirara.ca/card/100033.png", 
     vocal: 11, dance: 9, visual: 10,
-    type: IdolType.COOL, attack: 18, defense: 12, affection: 0, maxAffection: 20
+    type: IdolType.COOL, attack: 18, defense: 12, affection: 0, maxAffection: 20,
+    starRank: 1, isAwakened: false
   },
 ];
 

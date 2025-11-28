@@ -18,7 +18,7 @@ const App: React.FC = () => {
   const { 
     userId, user, idols, event, presents, announcements,
     login, register, logout, 
-    useItem, pullGacha, retireIdols, trainIdol, buyItem, doEventWork, doNormalWork,
+    useItem, pullGacha, retireIdols, trainIdol, specialTraining, starLesson, buyItem, doEventWork, doNormalWork,
     fetchChapters, fetchDialogs, markChapterRead, saveFanmadeStory, uploadSprite, fetchUserSprites, redeemPromoCode, claimPresent,
     fetchDeck, saveDeck, findOpponent, completeBattle,
     error 
@@ -36,6 +36,10 @@ const App: React.FC = () => {
           fetchDeck().then(ids => {
              setUserDeckIds(ids || []);
           });
+      }
+      // Initial fetch for Deck IDs to pass to IdolManager
+      if (userId && userDeckIds.length === 0) {
+          fetchDeck().then(ids => setUserDeckIds(ids || []));
       }
   }, [showBattle, userId, fetchDeck]);
 
@@ -115,7 +119,16 @@ const App: React.FC = () => {
       case 'WORK':
         return <Work user={user} onWork={doNormalWork} />;
       case 'IDOLS':
-        return <IdolManager idols={idols} onRetire={retireIdols} onTrain={trainIdol} trainerTickets={user.items.trainerTicket} />;
+        return <IdolManager 
+            idols={idols} 
+            onRetire={retireIdols} 
+            onTrain={trainIdol} 
+            onSpecialTraining={specialTraining}
+            onStarLesson={starLesson}
+            trainerTickets={user.items.trainerTicket} 
+            userDeckIds={userDeckIds}
+            onSaveDeck={handleSaveDeck}
+        />;
       case 'GACHA':
         return <Gacha jewels={user.starJewels} onPull={pullGacha} />;
       case 'COMMU':

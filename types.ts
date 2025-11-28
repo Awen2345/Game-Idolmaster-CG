@@ -28,6 +28,8 @@ export interface Idol {
   affection: number; // New: 0 to Max
   maxAffection: number; // New
   isLocked: boolean;
+  starRank: number; // New
+  isAwakened: boolean; // New
 }
 
 export interface UserState {

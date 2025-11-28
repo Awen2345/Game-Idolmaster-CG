@@ -187,6 +187,44 @@ export const useGameEngine = () => {
     return false;
   };
 
+  const specialTraining = async (idolId: string): Promise<boolean> => {
+      if(!userId) return false;
+      try {
+          const res = await fetch(`${API_URL}/idol/special_training`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ userId, idolId })
+          });
+          const data = await res.json();
+          if (data.success) {
+              fetchData();
+              return true;
+          } else {
+              alert(data.error);
+              return false;
+          }
+      } catch(e) { console.error(e); return false; }
+  };
+
+  const starLesson = async (targetId: string, partnerId: string): Promise<boolean> => {
+      if(!userId) return false;
+      try {
+          const res = await fetch(`${API_URL}/idol/star_lesson`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ userId, targetId, partnerId })
+          });
+          const data = await res.json();
+          if (data.success) {
+              fetchData();
+              return true;
+          } else {
+              alert(data.error);
+              return false;
+          }
+      } catch(e) { console.error(e); return false; }
+  };
+
   const buyItem = async (item: string, cost: number) => {
     if (!userId) return;
     try {
@@ -396,7 +434,7 @@ export const useGameEngine = () => {
 
   return {
     userId, user, idols, event, loading, error, presents, announcements,
-    login, register, logout, useItem, pullGacha, retireIdols, trainIdol, buyItem, doEventWork, doNormalWork,
+    login, register, logout, useItem, pullGacha, retireIdols, trainIdol, specialTraining, starLesson, buyItem, doEventWork, doNormalWork,
     fetchChapters, fetchDialogs, markChapterRead, saveFanmadeStory, uploadSprite, fetchUserSprites, redeemPromoCode,
     claimPresent,
     fetchDeck, saveDeck, findOpponent, completeBattle

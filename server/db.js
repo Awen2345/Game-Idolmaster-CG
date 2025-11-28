@@ -60,7 +60,7 @@ db.serialize(() => {
   db.run("ALTER TABLE idol_templates ADD COLUMN attack INTEGER", () => {});
   db.run("ALTER TABLE idol_templates ADD COLUMN defense INTEGER", () => {});
 
-  // 4. User Idols - Added affection
+  // 4. User Idols - Added affection, star_rank, is_awakened
   db.run(`CREATE TABLE IF NOT EXISTS user_idols (
     id TEXT PRIMARY KEY,
     user_id INTEGER,
@@ -68,10 +68,14 @@ db.serialize(() => {
     level INTEGER,
     affection INTEGER DEFAULT 0,
     isLocked INTEGER,
+    star_rank INTEGER DEFAULT 1,
+    is_awakened INTEGER DEFAULT 0,
     FOREIGN KEY(template_id) REFERENCES idol_templates(id)
   )`);
   
   db.run("ALTER TABLE user_idols ADD COLUMN affection INTEGER DEFAULT 0", () => {});
+  db.run("ALTER TABLE user_idols ADD COLUMN star_rank INTEGER DEFAULT 1", () => {});
+  db.run("ALTER TABLE user_idols ADD COLUMN is_awakened INTEGER DEFAULT 0", () => {});
 
   // 5. Events Table
   db.run(`CREATE TABLE IF NOT EXISTS events (

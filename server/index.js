@@ -133,9 +133,6 @@ app.post('/api/auth/register', (req, res) => {
                 db.run(`INSERT INTO work_progress (user_id, current_zone_id, progress_percent) VALUES (?, 1, 0)`, [userId]);
 
                 // Determine Starter Card
-                // Using standard CG starters: Uzuki (Cute), Rin (Cool), Mio (Passion)
-                // Note: DB needs to be populated first. Using IDs roughly from API if they exist. 
-                // Fallback to searching by name if specific ID fails, but let's assume standard IDs for now.
                 let starterId = '100001'; // Uzuki
                 if (prodType === 'COOL') starterId = '100002'; // Rin
                 if (prodType === 'PASSION') starterId = '100003'; // Mio
@@ -176,24 +173,102 @@ app.get('/api/user/:id', (req, res) => {
 
 app.get('/api/user/:id/idols', (req, res) => {
   const userId = req.params.id;
-  const sql = `SELECT ui.id, ui.level, ui.isLocked, ui.affection, it.* FROM user_idols ui JOIN idol_templates it ON ui.template_id = it.id WHERE ui.user_id = ?`;
+  const sql = `SELECT ui.id, ui.level, ui.isLocked, ui.affection, ui.star_rank, ui.is_awakened, it.* FROM user_idols ui JOIN idol_templates it ON ui.template_id = it.id WHERE ui.user_id = ?`;
   db.all(sql, [userId], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
-    const idols = rows.map(r => ({
-      id: r.id, name: r.name, rarity: r.rarity, type: r.type, level: r.level, maxLevel: r.maxLevel,
-      image: r.image, vocal: r.vocal, dance: r.dance, visual: r.visual, 
-      attack: r.attack, defense: r.defense, affection: r.affection, maxAffection: r.maxLevel, // Simplified max affection rule
-      isLocked: !!r.isLocked
-    }));
+    const idols = rows.map(r => {
+        const isAwakened = !!r.is_awakened;
+        const maxLevel = isAwakened ? r.maxLevel + 10 : r.maxLevel;
+        // Simple stat boost for awakening
+        const multiplier = isAwakened ? 1.2 : 1.0;
+
+        return {
+          id: r.id, name: r.name, rarity: r.rarity, type: r.type, level: r.level, maxLevel: maxLevel,
+          image: r.image, // In a real app, awakened has different image
+          vocal: Math.floor(r.vocal * multiplier), 
+          dance: Math.floor(r.dance * multiplier), 
+          visual: Math.floor(r.visual * multiplier), 
+          attack: Math.floor(r.attack * multiplier), 
+          defense: Math.floor(r.defense * multiplier), 
+          affection: r.affection, 
+          maxAffection: isAwakened ? r.maxLevel + 100 : r.maxLevel, 
+          isLocked: !!r.isLocked,
+          starRank: r.star_rank || 1,
+          isAwakened
+        };
+    });
     res.json(idols);
+  });
+});
+
+// --- IDOL MANAGEMENT ---
+
+app.post('/api/idol/train', (req, res) => {
+  const { userId, idolId } = req.body;
+  // Use a trainer ticket
+  db.get("SELECT count FROM user_items WHERE user_id = ? AND item_name = 'trainerTicket'", [userId], (err, row) => {
+      if(!row || row.count < 1) return res.status(400).json({ error: "No tickets" });
+      
+      db.run("UPDATE user_items SET count = count - 1 WHERE user_id = ? AND item_name = 'trainerTicket'", [userId]);
+      db.run("UPDATE user_idols SET level = level + 1 WHERE id = ?", [idolId]);
+      res.json({ success: true });
+  });
+});
+
+app.post('/api/idol/special_training', (req, res) => {
+    const { userId, idolId } = req.body;
+    // Check if idol exists and is max level/affection
+    const sql = `SELECT ui.*, it.maxLevel FROM user_idols ui JOIN idol_templates it ON ui.template_id = it.id WHERE ui.id = ? AND ui.user_id = ?`;
+    db.get(sql, [idolId, userId], (err, idol) => {
+        if (!idol) return res.status(404).json({error: "Idol not found"});
+        if (idol.is_awakened) return res.status(400).json({error: "Already Awakened"});
+        if (idol.level < idol.maxLevel) return res.status(400).json({error: "Must be Max Level"});
+        // Simplify affection check for demo
+        
+        // Awakening: Reset Level to 1, Set is_awakened = 1
+        db.run("UPDATE user_idols SET level = 1, is_awakened = 1 WHERE id = ?", [idolId], (err) => {
+            if (err) return res.status(500).json({error: err.message});
+            res.json({success: true});
+        });
+    });
+});
+
+app.post('/api/idol/star_lesson', (req, res) => {
+    const { userId, targetId, partnerId } = req.body;
+    if (targetId === partnerId) return res.status(400).json({error: "Cannot merge same instance"});
+    
+    const sql = "SELECT * FROM user_idols WHERE id IN (?, ?) AND user_id = ?";
+    db.all(sql, [targetId, partnerId, userId], (err, rows) => {
+        if (rows.length !== 2) return res.status(400).json({error: "Invalid idols"});
+        const target = rows.find(r => r.id === targetId);
+        const partner = rows.find(r => r.id === partnerId);
+        
+        if (target.template_id !== partner.template_id) return res.status(400).json({error: "Must be same idol type"});
+        
+        const newRank = (target.star_rank || 1) + (partner.star_rank || 1);
+        
+        db.serialize(() => {
+            db.run("DELETE FROM user_idols WHERE id = ?", [partnerId]);
+            db.run("UPDATE user_idols SET star_rank = ? WHERE id = ?", [newRank, targetId]);
+        });
+        
+        res.json({success: true, newRank});
+    });
+});
+
+app.post('/api/idol/retire', (req, res) => {
+  const { userId, ids } = req.body;
+  const placeholders = ids.map(() => '?').join(',');
+  const gain = ids.length * 500;
+  db.run(`DELETE FROM user_idols WHERE id IN (${placeholders})`, ids, (err) => {
+     db.run("UPDATE users SET money = money + ? WHERE id = ?", [gain, userId]);
+     res.json({ success: true, moneyGain: gain });
   });
 });
 
 // --- WORK API ---
 app.post('/api/work/execute', (req, res) => {
     const { userId } = req.body;
-    
-    // Fetch User, Progress, and Current Zone info
     const sql = `
         SELECT u.stamina, u.maxStamina, u.exp, u.maxExp, u.level, wp.current_zone_id, wp.progress_percent, wz.stamina_cost, wz.exp_gain
         FROM users u
@@ -204,17 +279,13 @@ app.post('/api/work/execute', (req, res) => {
 
     db.get(sql, [userId], (err, data) => {
         if (err || !data) return res.status(500).json({ error: "Work data not found" });
-        
-        if (data.stamina < data.stamina_cost) {
-            return res.json({ success: false, error: "Not enough stamina" });
-        }
+        if (data.stamina < data.stamina_cost) return res.json({ success: false, error: "Not enough stamina" });
 
         const newStamina = data.stamina - data.stamina_cost;
         let newExp = data.exp + data.exp_gain;
         const moneyGain = Math.floor(Math.random() * 100) + 50;
-        let newProgress = data.progress_percent + 10; // 10% progress per work
+        let newProgress = data.progress_percent + 10;
         
-        // Level Up Logic
         let newLevel = data.level;
         let newMaxExp = data.maxExp;
         let newMaxStamina = data.maxStamina;
@@ -225,11 +296,8 @@ app.post('/api/work/execute', (req, res) => {
              newMaxExp = Math.floor(newMaxExp * 1.1);
              newMaxStamina += 1;
              isLevelUp = true;
-             // Full stamina refill on level up
-             // newStamina = newMaxStamina; (Optional: Usually refill full)
         }
 
-        // Zone Clear Logic
         let isZoneClear = false;
         let nextZoneId = data.current_zone_id;
         if (newProgress >= 100) {
@@ -238,15 +306,12 @@ app.post('/api/work/execute', (req, res) => {
             nextZoneId++;
         }
 
-        // Drops (Item or Idol)
         let drop = null;
         const rand = Math.random();
         if (rand < 0.15) {
-             // Drop Trainer Ticket
              db.run("UPDATE user_items SET count = count + 1 WHERE user_id = ? AND item_name = 'trainerTicket'", [userId]);
              drop = { type: 'ITEM', name: 'Trainer Ticket' };
         } else if (rand < 0.25) {
-             // Drop Random N Idol
              db.get("SELECT * FROM idol_templates WHERE rarity = 'N' ORDER BY RANDOM() LIMIT 1", (err, tpl) => {
                  if (tpl) {
                      const instId = `${Date.now()}-DROP`;
@@ -256,8 +321,6 @@ app.post('/api/work/execute', (req, res) => {
              drop = { type: 'IDOL', name: 'New Idol', rarity: 'N' };
         }
 
-        // Affection Gain (Give to leader/first idol in deck for now)
-        // In full impl, this goes to the work team.
         const affectionGain = 1;
         db.get("SELECT id FROM user_decks WHERE user_id = ?", [userId], (err, deck) => {
             if (deck && deck.slot1_id) {
@@ -265,34 +328,18 @@ app.post('/api/work/execute', (req, res) => {
             }
         });
 
-        // Update DB
         db.run("UPDATE users SET stamina = ?, exp = ?, level = ?, maxExp = ?, maxStamina = ?, money = money + ? WHERE id = ?", 
             [newStamina, newExp, newLevel, newMaxExp, newMaxStamina, moneyGain, userId]);
         
         db.run("UPDATE work_progress SET current_zone_id = ?, progress_percent = ? WHERE user_id = ?", 
             [nextZoneId, newProgress, userId]);
 
-        res.json({
-            success: true,
-            newStamina,
-            expGained: data.exp_gain,
-            moneyGained,
-            affectionGained: affectionGain,
-            progress: newProgress,
-            drops: drop,
-            isLevelUp,
-            isZoneClear
-        });
+        res.json({ success: true, newStamina, expGained: data.exp_gain, moneyGained, affectionGained: affectionGain, progress: newProgress, drops: drop, isLevelUp, isZoneClear });
     });
 });
 
 app.get('/api/work/status/:userId', (req, res) => {
-    const sql = `
-        SELECT wp.progress_percent, wz.area_name, wz.zone_name, wz.stamina_cost
-        FROM work_progress wp
-        JOIN work_zones wz ON wp.current_zone_id = wz.id
-        WHERE wp.user_id = ?
-    `;
+    const sql = `SELECT wp.progress_percent, wz.area_name, wz.zone_name, wz.stamina_cost FROM work_progress wp JOIN work_zones wz ON wp.current_zone_id = wz.id WHERE wp.user_id = ?`;
     db.get(sql, [req.params.userId], (err, row) => {
         if (!row) return res.json(null);
         res.json(row);
@@ -320,7 +367,6 @@ app.post('/api/deck', (req, res) => {
     });
 });
 
-// ... Keep existing endpoints ...
 app.get('/api/battle/match/:userId', (req, res) => {
     const mode = req.query.mode || 'BOT';
     if (mode === 'BOT') {
@@ -357,6 +403,7 @@ app.get('/api/battle/match/:userId', (req, res) => {
         });
     }
 });
+
 app.post('/api/battle/finish', (req, res) => {
     const { userId, won } = req.body;
     const rewards = { exp: 0, money: 0, jewels: 0 };
@@ -371,6 +418,7 @@ app.post('/api/battle/finish', (req, res) => {
         res.json({ success: true, rewards });
     });
 });
+
 app.get('/api/event/active/:userId', (req, res) => {
     const userId = req.params.userId;
     const now = Date.now();
@@ -388,6 +436,7 @@ app.get('/api/event/active/:userId', (req, res) => {
         });
     });
 });
+
 app.post('/api/event/work', (req, res) => {
     const { userId, eventId, staminaCost } = req.body;
     db.get("SELECT stamina, maxStamina, exp, level, maxExp FROM users WHERE id = ?", [userId], (err, user) => {
@@ -407,6 +456,8 @@ app.post('/api/event/work', (req, res) => {
         });
     });
 });
+
+// ... Keep existing commu, promo, etc routes ...
 app.get('/api/commu/chapters', (req, res) => {
     const { type, userId } = req.query;
     const config = getGameConfig();
@@ -520,21 +571,6 @@ app.post('/api/shop/buy', (req, res) => {
         else db.run("INSERT INTO user_items VALUES (?, ?, 1)", [userId, item]);
         res.json({ success: true });
     });
-  });
-});
-app.post('/api/idol/train', (req, res) => {
-  const { userId, idolId } = req.body;
-  db.run("UPDATE user_items SET count = count - 1 WHERE user_id = ? AND item_name = 'trainerTicket'", [userId]);
-  db.run("UPDATE user_idols SET level = level + 1 WHERE id = ?", [idolId]);
-  res.json({ success: true });
-});
-app.post('/api/idol/retire', (req, res) => {
-  const { userId, ids } = req.body;
-  const placeholders = ids.map(() => '?').join(',');
-  const gain = ids.length * 500;
-  db.run(`DELETE FROM user_idols WHERE id IN (${placeholders})`, ids, (err) => {
-     db.run("UPDATE users SET money = money + ? WHERE id = ?", [gain, userId]);
-     res.json({ success: true, moneyGain: gain });
   });
 });
 app.post('/api/promo/redeem', (req, res) => {

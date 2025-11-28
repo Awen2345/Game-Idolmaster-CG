@@ -6,11 +6,12 @@ interface DeckBuilderProps {
   idols: Idol[];
   currentDeckIds: string[];
   onSave: (ids: string[]) => Promise<void>; 
-  onClose: () => void; // Used for "Back" to menu
+  onClose: () => void; // Used for "Back" to menu or closing overlay
   onExit?: () => void; // Used for "Exit" to Home
+  onBack?: () => void; // Optional internal navigation
 }
 
-const DeckBuilder: React.FC<DeckBuilderProps> = ({ idols, currentDeckIds, onSave, onClose, onExit }) => {
+const DeckBuilder: React.FC<DeckBuilderProps> = ({ idols, currentDeckIds, onSave, onClose, onExit, onBack }) => {
   // Slots State: always length 4. Holds ID string or null.
   const [slots, setSlots] = useState<(string | null)[]>([null, null, null, null]);
   const [isSaving, setIsSaving] = useState(false);
@@ -182,10 +183,10 @@ const DeckBuilder: React.FC<DeckBuilderProps> = ({ idols, currentDeckIds, onSave
         {/* Footer Actions (Fixed) */}
         <div className="absolute bottom-0 left-0 right-0 bg-gray-800 p-3 border-t border-gray-700 shadow-[0_-5px_15px_rgba(0,0,0,0.5)] z-20 flex gap-2">
              <button 
-                onClick={onClose}
+                onClick={onBack || onClose}
                 className="flex-1 bg-gray-600 hover:bg-gray-500 text-white font-bold py-3 rounded-xl shadow-lg transition-colors"
              >
-                Back
+                {onBack ? "Return" : "Close"}
              </button>
              <button 
                 onClick={handleSave}
