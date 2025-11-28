@@ -10,6 +10,7 @@ interface LoginBonusProps {
 const LoginBonus: React.FC<LoginBonusProps> = ({ result, onClose }) => {
     // Determine the days to display based on the streak
     const days = [1, 2, 3, 4, 5, 6, 7];
+    // Calculate current cycle position (1-7)
     const currentStreakInCycle = ((result.streak - 1) % 7) + 1;
 
     const getRewardIcon = (type: string) => {
@@ -31,7 +32,7 @@ const LoginBonus: React.FC<LoginBonusProps> = ({ result, onClose }) => {
                  
                  {/* Chihiro (Left Side) */}
                  <div className="absolute left-[-20px] bottom-[-40px] w-64 h-[450px] z-20 pointer-events-none filter drop-shadow-lg">
-                    <img src="https://imas.gamedbs.jp/cg/images_o/ui/navi/1452751597-103.png" className="w-full h-full object-contain" />
+                    <img src="https://imas.gamedbs.jp/cg/images_o/ui/navi/1452751597-103.png" className="w-full h-full object-contain" alt="Chihiro" />
                  </div>
 
                  {/* Speech Bubble */}
@@ -63,15 +64,15 @@ const LoginBonus: React.FC<LoginBonusProps> = ({ result, onClose }) => {
                                  const isToday = d === currentStreakInCycle;
                                  const isPast = d < currentStreakInCycle;
                                  
-                                 // Logic Fix: Show stamp if day is past OR if it is today. 
+                                 // Show stamp if day is past OR if it is today. 
                                  // If it's today and `!result.claimedToday` (meaning new claim), we animate it.
                                  const showStamp = isPast || isToday;
                                  const shouldAnimate = isToday && !result.claimedToday;
                                  
                                  // Find reward from config
                                  const rewardConfig = result.allRewards.find(r => r.day === d) || result.allRewards[0];
-                                 const rType = rewardConfig.type;
-                                 const rAmt = rewardConfig.amount;
+                                 const rType = rewardConfig ? rewardConfig.type : 'MONEY';
+                                 const rAmt = rewardConfig ? rewardConfig.amount : 0;
 
                                  return (
                                      <div key={d} className="relative bg-white border-2 border-dashed border-blue-200 rounded-lg flex flex-col items-center justify-center p-1 shadow-sm">

@@ -173,9 +173,22 @@ app.post('/api/user/login_bonus', (req, res) => {
         if (!user) return res.status(404).json({ error: "User not found" });
 
         const now = new Date();
-        // TESTING MODE: 500ms cooldown for easy testing. Change logic to days for production.
-        const diff = now.getTime() - (user.last_login_date || 0);
-        const isNewDay = diff > 500; 
+        const lastLogin = new Date(user.last_login_date || 0);
+
+        // --- DAILY RESET LOGIC ---
+        const resetHour = loginConfig.resetHour || 0;
+
+        const getGameDateString = (dateObj) => {
+            const adjustedDate = new Date(dateObj);
+            adjustedDate.setHours(adjustedDate.getHours() - resetHour);
+            return adjustedDate.toDateString(); 
+        };
+
+        const todayGameDate = getGameDateString(now);
+        const lastLoginGameDate = getGameDateString(lastLogin);
+
+        // Compare
+        const isNewDay = todayGameDate !== lastLoginGameDate;
 
         // If action is just CHECK, return status
         if (action === 'check') {
@@ -187,7 +200,7 @@ app.post('/api/user/login_bonus', (req, res) => {
 
         // If action is CLAIM
         if (!isNewDay) {
-            // Already claimed today, just return current status
+            // Already claimed today, return current status but mark as claimed
             const currentStreak = user.login_streak || 1;
             const cycleDay = ((currentStreak - 1) % 7) + 1;
             const todayReward = loginConfig.rewards.find(r => r.day === cycleDay) || loginConfig.rewards[0];
@@ -222,7 +235,7 @@ app.post('/api/user/login_bonus', (req, res) => {
         db.run("UPDATE users SET last_login_date = ?, login_streak = ? WHERE id = ?", [Date.now(), newStreak, userId]);
 
         res.json({
-            claimedToday: false, 
+            claimedToday: false, // It was a new claim
             streak: newStreak,
             todayConfig: reward,
             allRewards: loginConfig.rewards
@@ -235,7 +248,7 @@ app.post('/api/user/login_bonus', (req, res) => {
 app.get('/api/user/:id', (req, res) => {
   const userId = req.params.id;
   db.get("SELECT * FROM users WHERE id = ?", [userId], (err, user) => {
-    if (err) return res.status(500).json({ error: "Database error" });
+    if (err) return res.status(500).json({ error: "Database error", details: err.message });
     if (!user) return res.status(404).json({ error: "User not found" });
     
     // Safe recalc
