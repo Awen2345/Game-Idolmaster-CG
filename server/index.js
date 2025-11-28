@@ -162,19 +162,18 @@ app.post('/api/user/login_bonus', (req, res) => {
         const now = Date.now();
         const lastLogin = user.last_login_date || 0;
         
-        // MODIFIED FOR TESTING: Check if 1 second (1000ms) has passed instead of 1 day
+        // MODIFIED FOR TESTING: ALWAYS GRANT BONUS (0ms check)
         const diffMs = now - lastLogin;
 
-        // If less than 1 second has passed, it is claimed
-        if (diffMs < 1000) {
+        // Ensure at least 500ms passed to prevent double-click issues/spam
+        if (diffMs < 500) {
             return res.json({ claimed: true });
         }
 
-        // Increment streak every time (Simulating fast forward)
+        // Increment streak
         const newStreak = (user.login_streak || 0) + 1;
 
         // Determine Reward based on 7-day cycle
-        // Days 1-6: Normal, Day 7: Special
         const cycleDay = ((newStreak - 1) % 7) + 1;
         
         let rewardType = 'MONEY';
@@ -254,453 +253,248 @@ app.get('/api/user/:id/idols', (req, res) => {
 
         return {
           id: r.id, name: r.name, rarity: r.rarity, type: r.type, level: r.level, maxLevel: maxLevel,
-          image: r.image, // In a real app, awakened has different image
-          vocal: Math.floor(r.vocal * multiplier), 
-          dance: Math.floor(r.dance * multiplier), 
-          visual: Math.floor(r.visual * multiplier), 
-          attack: Math.floor(r.attack * multiplier), 
-          defense: Math.floor(r.defense * multiplier), 
-          affection: r.affection, 
-          maxAffection: isAwakened ? r.maxLevel + 100 : r.maxLevel, 
-          isLocked: !!r.isLocked,
-          starRank: r.star_rank || 1,
-          isAwakened
+          image: r.image, vocal: Math.floor(r.vocal * multiplier), dance: Math.floor(r.dance * multiplier), visual: Math.floor(r.visual * multiplier),
+          attack: Math.floor(r.attack * multiplier), defense: Math.floor(r.defense * multiplier),
+          affection: r.affection, maxAffection: r.maxLevel, // simplified
+          isLocked: !!r.isLocked, starRank: r.star_rank, isAwakened: isAwakened
         };
     });
     res.json(idols);
   });
 });
 
-// --- IDOL MANAGEMENT ---
-
 app.post('/api/idol/train', (req, res) => {
-  const { userId, idolId } = req.body;
-  // Use a trainer ticket
-  db.get("SELECT count FROM user_items WHERE user_id = ? AND item_name = 'trainerTicket'", [userId], (err, row) => {
-      if(!row || row.count < 1) return res.status(400).json({ error: "No tickets" });
-      
-      db.run("UPDATE user_items SET count = count - 1 WHERE user_id = ? AND item_name = 'trainerTicket'", [userId]);
-      db.run("UPDATE user_idols SET level = level + 1 WHERE id = ?", [idolId]);
-      res.json({ success: true });
-  });
+    const { userId, idolId } = req.body;
+    
+    // Check ticket count
+    db.get("SELECT count FROM user_items WHERE user_id = ? AND item_name = 'trainerTicket'", [userId], (err, row) => {
+        if (!row || row.count < 1) return res.json({ error: "No Trainer Tickets!" });
+        
+        // Update Idol Level
+        const sql = `UPDATE user_idols SET level = level + 1 WHERE id = ? AND level < (SELECT maxLevel FROM idol_templates WHERE id = user_idols.template_id) + (CASE WHEN is_awakened = 1 THEN 10 ELSE 0 END)`;
+        db.run(sql, [idolId], function(err) {
+             if (this.changes > 0) {
+                 // Consume Ticket
+                 db.run("UPDATE user_items SET count = count - 1 WHERE user_id = ? AND item_name = 'trainerTicket'", [userId]);
+                 res.json({ success: true });
+             } else {
+                 res.json({ error: "Idol already Max Level or not found" });
+             }
+        });
+    });
 });
 
 app.post('/api/idol/special_training', (req, res) => {
     const { userId, idolId } = req.body;
-    // Check if idol exists and is max level/affection
-    const sql = `SELECT ui.*, it.maxLevel FROM user_idols ui JOIN idol_templates it ON ui.template_id = it.id WHERE ui.id = ? AND ui.user_id = ?`;
-    db.get(sql, [idolId, userId], (err, idol) => {
-        if (!idol) return res.status(404).json({error: "Idol not found"});
-        if (idol.is_awakened) return res.status(400).json({error: "Already Awakened"});
-        if (idol.level < idol.maxLevel) return res.status(400).json({error: "Must be Max Level"});
-        // Simplify affection check for demo
-        
-        // Awakening: Reset Level to 1, Set is_awakened = 1
-        db.run("UPDATE user_idols SET level = 1, is_awakened = 1 WHERE id = ?", [idolId], (err) => {
-            if (err) return res.status(500).json({error: err.message});
-            res.json({success: true});
-        });
+    db.run("UPDATE user_idols SET is_awakened = 1, level = 1 WHERE id = ? AND user_id = ? AND is_awakened = 0", [idolId, userId], function(err) {
+        if(this.changes > 0) {
+            res.json({ success: true });
+        } else {
+            res.json({ error: "Special Training Failed. Idol might already be awakened." });
+        }
     });
 });
 
 app.post('/api/idol/star_lesson', (req, res) => {
     const { userId, targetId, partnerId } = req.body;
-    if (targetId === partnerId) return res.status(400).json({error: "Cannot merge same instance"});
-    
-    const sql = "SELECT * FROM user_idols WHERE id IN (?, ?) AND user_id = ?";
-    db.all(sql, [targetId, partnerId, userId], (err, rows) => {
-        if (rows.length !== 2) return res.status(400).json({error: "Invalid idols"});
-        const target = rows.find(r => r.id === targetId);
-        const partner = rows.find(r => r.id === partnerId);
-        
-        if (target.template_id !== partner.template_id) return res.status(400).json({error: "Must be same idol type"});
-        
-        const newRank = (target.star_rank || 1) + (partner.star_rank || 1);
-        
-        db.serialize(() => {
-            db.run("DELETE FROM user_idols WHERE id = ?", [partnerId]);
-            db.run("UPDATE user_idols SET star_rank = ? WHERE id = ?", [newRank, targetId]);
+    if(targetId === partnerId) return res.json({ error: "Cannot use same idol" });
+
+    db.get("SELECT template_id FROM user_idols WHERE id = ?", [targetId], (err, target) => {
+        db.get("SELECT template_id FROM user_idols WHERE id = ?", [partnerId], (err, partner) => {
+             if(target && partner && target.template_id === partner.template_id) {
+                 db.run("UPDATE user_idols SET star_rank = star_rank + 1 WHERE id = ?", [targetId]);
+                 db.run("DELETE FROM user_idols WHERE id = ?", [partnerId]);
+                 res.json({ success: true });
+             } else {
+                 res.json({ error: "Idols do not match or not found" });
+             }
         });
-        
-        res.json({success: true, newRank});
     });
 });
 
 app.post('/api/idol/retire', (req, res) => {
-  const { userId, ids } = req.body;
-  const placeholders = ids.map(() => '?').join(',');
-  const gain = ids.length * 500;
-  db.run(`DELETE FROM user_idols WHERE id IN (${placeholders})`, ids, (err) => {
-     db.run("UPDATE users SET money = money + ? WHERE id = ?", [gain, userId]);
-     res.json({ success: true, moneyGain: gain });
-  });
+    const { userId, ids } = req.body;
+    // Simple implementation: delete and give money
+    const placeholders = ids.map(() => '?').join(',');
+    db.run(`DELETE FROM user_idols WHERE user_id = ? AND id IN (${placeholders})`, [userId, ...ids], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        const moneyEarned = this.changes * 1000;
+        db.run("UPDATE users SET money = money + ? WHERE id = ?", [moneyEarned, userId]);
+        res.json({ success: true, moneyEarned });
+    });
 });
 
-// --- WORK API ---
-app.post('/api/work/execute', (req, res) => {
-    const { userId } = req.body;
-    const sql = `
-        SELECT u.stamina, u.maxStamina, u.exp, u.maxExp, u.level, wp.current_zone_id, wp.progress_percent, wz.stamina_cost, wz.exp_gain
-        FROM users u
-        JOIN work_progress wp ON u.id = wp.user_id
-        JOIN work_zones wz ON wp.current_zone_id = wz.id
-        WHERE u.id = ?
-    `;
-
-    db.get(sql, [userId], (err, data) => {
-        if (err || !data) return res.status(500).json({ error: "Work data not found" });
-        if (data.stamina < data.stamina_cost) return res.json({ success: false, error: "Not enough stamina" });
-
-        const newStamina = data.stamina - data.stamina_cost;
-        let newExp = data.exp + data.exp_gain;
-        const moneyGain = Math.floor(Math.random() * 100) + 50;
-        let newProgress = data.progress_percent + 10;
+app.post('/api/gacha', (req, res) => {
+    const { userId, count } = req.body;
+    const cost = count === 10 ? 2500 : 250;
+    
+    db.get("SELECT starJewels FROM users WHERE id = ?", [userId], (err, row) => {
+        if (!row || row.starJewels < cost) return res.json({ error: "Not enough jewels" });
         
-        let newLevel = data.level;
-        let newMaxExp = data.maxExp;
-        let newMaxStamina = data.maxStamina;
-        let isLevelUp = false;
-        if (newExp >= data.maxExp) {
-             newLevel++;
-             newExp -= data.maxExp;
-             newMaxExp = Math.floor(newMaxExp * 1.1);
-             newMaxStamina += 1;
-             isLevelUp = true;
-        }
-
-        let isZoneClear = false;
-        let nextZoneId = data.current_zone_id;
-        if (newProgress >= 100) {
-            isZoneClear = true;
-            newProgress = 0;
-            nextZoneId++;
-        }
-
-        let drop = null;
-        const rand = Math.random();
-        if (rand < 0.15) {
-             db.run("UPDATE user_items SET count = count + 1 WHERE user_id = ? AND item_name = 'trainerTicket'", [userId]);
-             drop = { type: 'ITEM', name: 'Trainer Ticket' };
-        } else if (rand < 0.25) {
-             db.get("SELECT * FROM idol_templates WHERE rarity = 'N' ORDER BY RANDOM() LIMIT 1", (err, tpl) => {
-                 if (tpl) {
-                     const instId = `${Date.now()}-DROP`;
-                     db.run("INSERT INTO user_idols (id, user_id, template_id, level, isLocked, affection) VALUES (?, ?, ?, 1, 0, 0)", [instId, userId, tpl.id]);
-                 }
-             });
-             drop = { type: 'IDOL', name: 'New Idol', rarity: 'N' };
-        }
-
-        const affectionGain = 1;
-        db.get("SELECT id FROM user_decks WHERE user_id = ?", [userId], (err, deck) => {
-            if (deck && deck.slot1_id) {
-                 db.run("UPDATE user_idols SET affection = affection + ? WHERE id = ?", [affectionGain, deck.slot1_id]);
+        db.all("SELECT * FROM idol_templates", (err, templates) => {
+            if (!templates || templates.length === 0) return res.json({ error: "No idols in database" });
+            
+            const pulled = [];
+            for (let i = 0; i < count; i++) {
+                // Gacha Logic: 3% SSR, 12% SR, 85% R/N
+                const rand = Math.random() * 100;
+                let rarity = 'R'; 
+                if (rand < 3) rarity = 'SSR';
+                else if (rand < 15) rarity = 'SR';
+                
+                // Filter templates by rarity
+                const pool = templates.filter(t => t.rarity === rarity);
+                // Fallback if pool empty
+                const finalPool = pool.length > 0 ? pool : templates;
+                const selected = finalPool[Math.floor(Math.random() * finalPool.length)];
+                
+                // Assign unique instance ID
+                const instanceId = `${Date.now()}-${i}-${Math.floor(Math.random()*1000)}`;
+                pulled.push({ ...selected, instanceId });
             }
+
+            // Save to DB
+            const stmt = db.prepare("INSERT INTO user_idols (id, user_id, template_id, level, isLocked, affection) VALUES (?, ?, ?, 1, 0, 0)");
+            pulled.forEach(p => stmt.run(p.instanceId, userId, p.id));
+            stmt.finalize();
+
+            // Deduct Jewels
+            const newJewels = row.starJewels - cost;
+            db.run("UPDATE users SET starJewels = ? WHERE id = ?", [newJewels, userId]);
+
+            res.json({ newJewels, pulledIdols: pulled.map(p => ({
+                id: p.instanceId, name: p.name, rarity: p.rarity, type: p.type, 
+                level: 1, maxLevel: p.maxLevel, image: p.image, 
+                vocal: p.vocal, dance: p.dance, visual: p.visual,
+                attack: p.attack, defense: p.defense, affection: 0, maxAffection: p.maxLevel,
+                isLocked: false, starRank: 1, isAwakened: false
+            })) });
         });
+    });
+});
 
-        db.run("UPDATE users SET stamina = ?, exp = ?, level = ?, maxExp = ?, maxStamina = ?, money = money + ? WHERE id = ?", 
-            [newStamina, newExp, newLevel, newMaxExp, newMaxStamina, moneyGain, userId]);
+// COMMU & PROMO
+app.get('/api/commu/chapters', (req, res) => {
+    const { type, userId } = req.query;
+    const config = getGameConfig();
+    
+    // Get read status from DB
+    db.all("SELECT chapter_id FROM user_read_chapters WHERE user_id = ?", [userId], (err, rows) => {
+        const readIds = new Set(rows ? rows.map(r => r.chapter_id) : []);
         
-        db.run("UPDATE work_progress SET current_zone_id = ?, progress_percent = ? WHERE user_id = ?", 
-            [nextZoneId, newProgress, userId]);
-
-        res.json({ success: true, newStamina, expGained: data.exp_gain, moneyGained, affectionGained: affectionGain, progress: newProgress, drops: drop, isLevelUp, isZoneClear });
+        const filtered = config.chapters.filter(c => c.type === type).map(c => ({
+            ...c,
+            isRead: readIds.has(c.id)
+        }));
+        res.json(filtered);
     });
 });
 
-app.get('/api/work/status/:userId', (req, res) => {
-    const sql = `SELECT wp.progress_percent, wz.area_name, wz.zone_name, wz.stamina_cost FROM work_progress wp JOIN work_zones wz ON wp.current_zone_id = wz.id WHERE wp.user_id = ?`;
-    db.get(sql, [req.params.userId], (err, row) => {
-        if (!row) return res.json(null);
-        res.json(row);
-    });
+app.get('/api/commu/dialogs/:id', (req, res) => {
+    const chapterId = req.params.id;
+    const config = getGameConfig();
+    const chapter = config.chapters.find(c => c.id === chapterId);
+    res.json(chapter ? chapter.dialogs : []);
 });
 
-// ... (Rest of existing endpoints) ...
+app.post('/api/commu/read', (req, res) => {
+    const { userId, chapterId } = req.body;
+    db.run("INSERT OR IGNORE INTO user_read_chapters (user_id, chapter_id, read_at) VALUES (?, ?, ?)", [userId, chapterId, Date.now()]);
+    res.json({ success: true });
+});
+
+app.post('/api/promo/redeem', (req, res) => {
+    const { userId, code } = req.body;
+    const config = getGameConfig();
+    const promo = config.promoCodes.find(p => p.code === code);
+    
+    if (!promo) return res.json({ error: "Invalid Code" });
+    if (Date.now() < promo.startTime || Date.now() > promo.endTime) return res.json({ error: "Code Expired" });
+
+    // Check usage if single use
+    if (promo.isSingleUse) {
+        db.get("SELECT * FROM promo_usage WHERE user_id = ? AND code = ?", [userId, code], (err, row) => {
+            if (row) return res.json({ error: "Already used" });
+            
+            // Record usage
+            db.run("INSERT INTO promo_usage VALUES (?, ?, ?)", [userId, code, Date.now()]);
+            // Give Reward
+            grantReward(userId, promo.rewardType, promo.rewardAmount);
+            res.json({ success: true, message: `Redeemed ${promo.rewardAmount} ${promo.rewardType}!` });
+        });
+    } else {
+        // Repeatable
+        grantReward(userId, promo.rewardType, promo.rewardAmount);
+        res.json({ success: true, message: `Redeemed ${promo.rewardAmount} ${promo.rewardType}!` });
+    }
+});
+
+function grantReward(userId, type, amount) {
+    db.run("INSERT INTO presents (user_id, type, amount, description, received_at) VALUES (?, ?, ?, 'Promo Code Reward', ?)", 
+           [userId, type, amount, Date.now()]);
+}
+
+// BATTLE DECK
 app.get('/api/user/:id/deck', (req, res) => {
-    db.get("SELECT * FROM user_decks WHERE user_id = ?", [req.params.id], (err, row) => {
-        if (!row) { return res.json([null, null, null, null]); }
-        const ids = [row.slot1_id || null, row.slot2_id || null, row.slot3_id || null, row.slot4_id || null];
-        res.json(ids);
+    const userId = req.params.id;
+    db.get("SELECT slot1_id, slot2_id, slot3_id, slot4_id FROM user_decks WHERE user_id = ?", [userId], (err, row) => {
+        if (!row) return res.json([null, null, null, null]);
+        // Return exactly 4 slots
+        res.json([row.slot1_id, row.slot2_id, row.slot3_id, row.slot4_id]);
     });
 });
 
 app.post('/api/deck', (req, res) => {
-    const { userId, cardIds } = req.body; 
-    const safeIds = [...(cardIds || [])];
+    const { userId, cardIds } = req.body; // Expect array of 4 strings/nulls
+    
+    // Safety pad
+    const safeIds = [...cardIds];
     while(safeIds.length < 4) safeIds.push(null);
-    const [s1, s2, s3, s4] = safeIds;
-    const sql = `INSERT OR REPLACE INTO user_decks (user_id, slot1_id, slot2_id, slot3_id, slot4_id) VALUES (?, ?, ?, ?, ?)`;
-    db.run(sql, [userId, s1, s2, s3, s4], (err) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ success: true });
-    });
+    
+    // REPLACE INTO or INSERT OR REPLACE
+    db.run(`INSERT OR REPLACE INTO user_decks (user_id, slot1_id, slot2_id, slot3_id, slot4_id) VALUES (?, ?, ?, ?, ?)`, 
+           [userId, safeIds[0], safeIds[1], safeIds[2], safeIds[3]], (err) => {
+               if(err) console.error(err);
+               res.json({ success: !err });
+           });
 });
 
 app.get('/api/battle/match/:userId', (req, res) => {
-    const mode = req.query.mode || 'BOT';
+    const mode = req.query.mode;
+    
     if (mode === 'BOT') {
-        const botNames = ["P-San 902", "KiraraFan", "Producer X", "StaminaDrain", "RinP"];
-        const randomName = botNames[Math.floor(Math.random() * botNames.length)];
-        const randomLevel = Math.floor(Math.random() * 20) + 1;
-        db.all("SELECT * FROM idol_templates ORDER BY RANDOM() LIMIT 4", (err, rows) => {
-            const cards = rows.map(r => ({
-                name: r.name,
-                image: r.image,
-                rarity: r.rarity,
-                totalStats: Math.floor((r.vocal + r.dance + r.visual) * (1 + (randomLevel * 0.05)))
-            }));
-            const totalPower = cards.reduce((sum, c) => sum + c.totalStats, 0);
-            res.json({ name: randomName, level: randomLevel, isBot: true, cards: cards, totalPower });
-        });
-    } else {
-        const sql = `SELECT u.name, u.level, ud.* FROM users u JOIN user_decks ud ON u.id = ud.user_id WHERE u.id != ? ORDER BY RANDOM() LIMIT 1`;
-        db.get(sql, [req.params.userId], async (err, opponent) => {
-            if (!opponent) return res.redirect(`/api/battle/match/${req.params.userId}?mode=BOT`);
-            const slots = [opponent.slot1_id, opponent.slot2_id, opponent.slot3_id, opponent.slot4_id].filter(Boolean);
-            if(slots.length === 0) return res.redirect(`/api/battle/match/${req.params.userId}?mode=BOT`);
-            const placeholder = slots.map(()=>'?').join(',');
-            const cardSql = `SELECT it.name, it.image, it.rarity, it.vocal, it.dance, it.visual, ui.level FROM user_idols ui JOIN idol_templates it ON ui.template_id = it.id WHERE ui.id IN (${placeholder})`;
-            db.all(cardSql, slots, (err, cardsData) => {
-                const cards = cardsData.map(c => {
-                    const baseTotal = c.vocal + c.dance + c.visual;
-                    const scaledTotal = Math.floor(baseTotal * (1 + (c.level - 1) * 0.05));
-                    return { name: c.name, image: c.image, rarity: c.rarity, totalStats: scaledTotal };
-                });
-                const totalPower = cards.reduce((sum, c) => sum + c.totalStats, 0);
-                res.json({ name: opponent.name, level: opponent.level, isBot: false, cards, totalPower });
-            });
-        });
+        const opponent = {
+            name: "Trainer Rookie",
+            level: 5,
+            isBot: true,
+            cards: [
+                { name: "Uzuki (Bot)", image: "https://hidamarirhodonite.kirara.ca/card/100001.png", rarity: 'N', totalStats: 30 },
+                { name: "Rin (Bot)", image: "https://hidamarirhodonite.kirara.ca/card/100002.png", rarity: 'N', totalStats: 30 },
+                { name: "Mio (Bot)", image: "https://hidamarirhodonite.kirara.ca/card/100003.png", rarity: 'N', totalStats: 30 },
+                { name: "Miku (Bot)", image: "https://hidamarirhodonite.kirara.ca/card/100021.png", rarity: 'N', totalStats: 30 }
+            ],
+            totalPower: 120
+        };
+        return res.json(opponent);
     }
+    res.status(404).json(null);
 });
 
 app.post('/api/battle/finish', (req, res) => {
     const { userId, won } = req.body;
-    const rewards = { exp: 0, money: 0, jewels: 0 };
-    if (won) { rewards.exp = 20; rewards.money = 1000; rewards.jewels = 10; } 
-    else { rewards.exp = 5; rewards.money = 100; }
-    db.get("SELECT level, exp, maxExp FROM users WHERE id = ?", [userId], (err, user) => {
-        let newExp = user.exp + rewards.exp;
-        let newLevel = user.level;
-        let newMaxExp = user.maxExp;
-        if (newExp >= user.maxExp) { newLevel++; newExp = newExp - user.maxExp; newMaxExp = Math.floor(newMaxExp * 1.1); }
-        db.run("UPDATE users SET money = money + ?, starJewels = starJewels + ?, exp = ?, level = ?, maxExp = ? WHERE id = ?", [rewards.money, rewards.jewels, newExp, newLevel, newMaxExp, userId]);
-        res.json({ success: true, rewards });
-    });
+    // Simple rewards
+    const rewards = won 
+        ? { exp: 50, money: 1000, jewels: 10 } 
+        : { exp: 10, money: 100, jewels: 0 };
+        
+    db.run("UPDATE users SET exp = exp + ?, money = money + ?, starJewels = starJewels + ? WHERE id = ?", 
+           [rewards.exp, rewards.money, rewards.jewels, userId]);
+           
+    res.json({ success: true, rewards });
 });
 
-app.get('/api/event/active/:userId', (req, res) => {
-    const userId = req.params.userId;
-    const now = Date.now();
-    db.get("SELECT * FROM events WHERE start_time <= ? AND end_time >= ? LIMIT 1", [now, now], (err, event) => {
-        if (!event) return res.json({ isActive: false });
-        db.get("SELECT points FROM event_points WHERE user_id = ? AND event_id = ?", [userId, event.id], (err, pointRow) => {
-            const userPoints = pointRow ? pointRow.points : 0;
-            db.all("SELECT * FROM event_rewards_def WHERE event_id = ? ORDER BY point_threshold ASC", [event.id], (err, rewards) => {
-                db.all(`SELECT u.name, ep.points FROM event_points ep JOIN users u ON ep.user_id = u.id WHERE ep.event_id = ? ORDER BY ep.points DESC LIMIT 5`, [event.id], (err, ranking) => {
-                    const rankingWithIndex = ranking.map((r, i) => ({ rank: i + 1, name: r.name, points: r.points }));
-                    const mappedRewards = rewards.map(r => ({ pointThreshold: r.point_threshold, rewardName: r.reward_name, rewardAmount: r.reward_amount, claimed: userPoints >= r.point_threshold }));
-                    res.json({ id: event.id, name: event.name, description: event.description, banner: event.banner, startTime: event.start_time, endTime: event.end_time, isActive: true, userPoints, rewards: mappedRewards, ranking: rankingWithIndex });
-                });
-            });
-        });
-    });
-});
-
-app.post('/api/event/work', (req, res) => {
-    const { userId, eventId, staminaCost } = req.body;
-    db.get("SELECT stamina, maxStamina, exp, level, maxExp FROM users WHERE id = ?", [userId], (err, user) => {
-        if (user.stamina < staminaCost) return res.status(400).json({ error: "Not enough stamina" });
-        const newStamina = user.stamina - staminaCost;
-        let newExp = user.exp + (staminaCost * 2);
-        let newLevel = user.level;
-        let newMaxStamina = user.maxStamina;
-        let leveledUp = false;
-        if (newExp >= user.maxExp) { newLevel++; newExp = newExp - user.maxExp; newMaxStamina += 1; leveledUp = true; }
-        db.run("UPDATE users SET stamina = ?, exp = ?, level = ?, maxStamina = ? WHERE id = ?", [newStamina, newExp, newLevel, newMaxStamina, userId]);
-        const pointsGained = Math.floor(staminaCost * 10 + Math.random() * 20);
-        db.get("SELECT points FROM event_points WHERE user_id = ? AND event_id = ?", [userId, eventId], (err, row) => {
-            if (row) { db.run("UPDATE event_points SET points = points + ? WHERE user_id = ? AND event_id = ?", [pointsGained, userId, eventId]); } 
-            else { db.run("INSERT INTO event_points VALUES (?, ?, ?)", [userId, eventId, pointsGained]); }
-            res.json({ success: true, pointsGained, newStamina, leveledUp, newLevel });
-        });
-    });
-});
-
-// ... Keep existing commu, promo, etc routes ...
-app.get('/api/commu/chapters', (req, res) => {
-    const { type, userId } = req.query;
-    const config = getGameConfig();
-    let chapters = config.chapters || [];
-    if (type) { chapters = chapters.filter(c => c.type === type); }
-    if (!userId) { return res.json(chapters.map(c => ({ ...c, isRead: false }))); }
-    db.all("SELECT chapter_id FROM user_read_chapters WHERE user_id = ?", [userId], (err, readRows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        const readIds = new Set(readRows.map(r => r.chapter_id));
-        const response = chapters.map(c => ({ ...c, isRead: readIds.has(c.id) }));
-        res.json(response);
-    });
-});
-app.get('/api/commu/dialogs/:chapterId', (req, res) => {
-    const config = getGameConfig();
-    const chapter = config.chapters.find(c => c.id === req.params.chapterId);
-    if (chapter && chapter.dialogs) { res.json(chapter.dialogs); } else { db.all("SELECT * FROM dialogs WHERE chapter_id = ? ORDER BY sort_order ASC", [req.params.chapterId], (err, rows) => { res.json(rows || []); }); }
-});
-app.post('/api/commu/read', (req, res) => {
-    const { userId, chapterId } = req.body;
-    db.run("INSERT OR IGNORE INTO user_read_chapters (user_id, chapter_id, read_at) VALUES (?, ?, ?)", [userId, chapterId, Date.now()], (err) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ success: true });
-    });
-});
-app.get('/api/fan/chapters', (req, res) => {
-    const sql = `SELECT fc.*, u.username as authorName FROM fan_chapters fc LEFT JOIN users u ON fc.user_id = u.id ORDER BY fc.created_at DESC`;
-    db.all(sql, [], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows.map(r => ({ ...r, type: 'FANMADE' })));
-    });
-});
-app.get('/api/fan/dialogs/:chapterId', (req, res) => {
-    db.all("SELECT * FROM fan_dialogs WHERE chapter_id = ? ORDER BY sort_order ASC", [req.params.chapterId], (err, rows) => {
-        const mappedRows = rows.map(r => ({ ...r, customSpriteUrl: r.custom_sprite_url }));
-        res.json(mappedRows);
-    });
-});
-app.post('/api/fan/create', (req, res) => {
-    const { userId, title, dialogs } = req.body;
-    db.run("INSERT INTO fan_chapters (user_id, title, created_at) VALUES (?, ?, ?)", [userId, title, Date.now()], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
-        const chapterId = this.lastID;
-        const stmt = db.prepare("INSERT INTO fan_dialogs (chapter_id, speaker, text, expression, sort_order, custom_sprite_url) VALUES (?, ?, ?, ?, ?, ?)");
-        dialogs.forEach((d, index) => { stmt.run(chapterId, d.speaker, d.text, d.expression || 'neutral', index, d.customSpriteUrl || null); });
-        stmt.finalize();
-        res.json({ success: true, chapterId });
-    });
-});
-app.post('/api/fan/sprite', (req, res) => {
-    const { userId, name, image } = req.body;
-    if(!image) return res.status(400).json({error: "No image"});
-    db.run("INSERT INTO user_sprites (user_id, name, url) VALUES (?, ?, ?)", [userId, name, image], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ success: true, id: this.lastID });
-    });
-});
-app.get('/api/fan/sprites/:userId', (req, res) => {
-    db.all("SELECT id, name, url FROM user_sprites WHERE user_id = ?", [req.params.userId], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
-    });
-});
-app.post('/api/gacha', (req, res) => {
-  const { userId, count } = req.body; 
-  const cost = count === 10 ? 2500 : 250;
-  db.get("SELECT starJewels FROM users WHERE id = ?", [userId], (err, row) => {
-    if (!row || row.starJewels < cost) return res.status(400).json({ error: "Not enough jewels" });
-    const newJewels = row.starJewels - cost;
-    db.run("UPDATE users SET starJewels = ? WHERE id = ?", [newJewels, userId]);
-    db.all("SELECT * FROM idol_templates", (err, templates) => {
-      if (!templates || templates.length === 0) return res.status(500).json({error: "Gacha Data Not Ready"});
-      const pulledIdols = [];
-      const stmt = db.prepare("INSERT INTO user_idols (id, user_id, template_id, level, isLocked, affection) VALUES (?, ?, ?, 1, 0, 0)");
-      const poolSSR = templates.filter(t => t.rarity === 'SSR');
-      const poolSR = templates.filter(t => t.rarity === 'SR');
-      const poolR = templates.filter(t => t.rarity === 'R');
-      const poolN = templates.filter(t => t.rarity === 'N');
-      for(let i=0; i<count; i++) {
-        const rand = Math.random() * 100;
-        let pool = poolN;
-        if (rand <= 3) pool = poolSSR;
-        else if (rand <= 12) pool = poolSR;
-        else if (rand <= 90) pool = poolR;
-        if (pool.length === 0) pool = templates;
-        const template = pool[Math.floor(Math.random() * pool.length)];
-        const instanceId = `${Date.now()}-${i}-${Math.random().toString(36).substr(2, 5)}`;
-        stmt.run(instanceId, userId, template.id);
-        pulledIdols.push({ ...template, id: instanceId, level: 1, isLocked: false, affection: 0, maxAffection: template.maxLevel });
-      }
-      stmt.finalize();
-      res.json({ newJewels, pulledIdols });
-    });
-  });
-});
-app.post('/api/item/use', (req, res) => {
-  const { userId, item } = req.body;
-  if (item === 'staminaDrink') {
-    db.run("UPDATE user_items SET count = count - 1 WHERE user_id = ? AND item_name = 'staminaDrink'", [userId]);
-    db.run("UPDATE users SET stamina = stamina + 20 WHERE id = ?", [userId]);
-    res.json({ success: true });
-  } else { res.status(400).json({ error: "Invalid item" }); }
-});
-app.post('/api/shop/buy', (req, res) => {
-  const { userId, item, cost } = req.body;
-  db.get("SELECT starJewels FROM users WHERE id = ?", [userId], (err, row) => {
-    if (row.starJewels < cost) return res.status(400).json({ error: "Not enough jewels" });
-    db.run("UPDATE users SET starJewels = starJewels - ? WHERE id = ?", [cost, userId]);
-    db.get("SELECT count FROM user_items WHERE user_id = ? AND item_name = ?", [userId, item], (err, iRow) => {
-        if (iRow) db.run("UPDATE user_items SET count = count + 1 WHERE user_id = ? AND item_name = ?", [userId, item]);
-        else db.run("INSERT INTO user_items VALUES (?, ?, 1)", [userId, item]);
-        res.json({ success: true });
-    });
-  });
-});
-app.post('/api/promo/redeem', (req, res) => {
-    const { userId, code } = req.body;
-    const now = Date.now();
-    const config = getGameConfig();
-    const promo = config.promoCodes.find(p => p.code === code);
-    if (!promo) return res.json({ success: false, error: "Invalid Code" });
-    if (now < promo.startTime) return res.json({ success: false, error: "Code not yet active" });
-    if (now > promo.endTime) return res.json({ success: false, error: "Code expired" });
-    if (promo.isSingleUse) {
-        db.get("SELECT * FROM promo_usage WHERE user_id = ? AND code = ?", [userId, code], (err, usage) => {
-            if (usage) return res.json({ success: false, error: "You already used this code" });
-            if (promo.type === 'UNIQUE') {
-                db.get("SELECT * FROM promo_usage WHERE code = ?", [code], (err, anyUsage) => {
-                    if (anyUsage) return res.json({ success: false, error: "Code already claimed by someone else" });
-                    applyReward(true);
-                });
-            } else { applyReward(true); }
-        });
-    } else { applyReward(false); }
-    function applyReward(shouldRecordUsage) {
-         if (shouldRecordUsage) { db.run("INSERT INTO promo_usage (user_id, code, used_at) VALUES (?, ?, ?)", [userId, code, now]); }
-         db.run("INSERT INTO presents (user_id, type, amount, description, received_at) VALUES (?, ?, ?, ?, ?)", [userId, promo.rewardType, promo.rewardAmount, `Promo: ${code}`, now]);
-         res.json({ success: true, message: "Reward sent to Present Box!" });
-    }
-});
-app.get('/api/user/:id/presents', (req, res) => {
-    db.all("SELECT * FROM presents WHERE user_id = ? ORDER BY received_at DESC", [req.params.id], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        const mapped = rows.map(r => ({ id: r.id, type: r.type, amount: r.amount, description: r.description, receivedAt: r.received_at }));
-        res.json(mapped);
-    });
-});
-app.post('/api/user/:id/presents/claim', (req, res) => {
-    const { userId, presentId } = req.body;
-    db.get("SELECT * FROM presents WHERE id = ? AND user_id = ?", [presentId, userId], (err, present) => {
-        if(!present) return res.status(404).json({error: "Present not found"});
-        if (present.type === 'MONEY') { db.run("UPDATE users SET money = money + ? WHERE id = ?", [present.amount, userId]); } 
-        else if (present.type === 'JEWEL') { db.run("UPDATE users SET starJewels = starJewels + ? WHERE id = ?", [present.amount, userId]); } 
-        else if (present.type.includes('ITEM')) {
-            const itemName = 'staminaDrink'; 
-             db.get("SELECT count FROM user_items WHERE user_id = ? AND item_name = ?", [userId, itemName], (err, iRow) => {
-                if (iRow) db.run("UPDATE user_items SET count = count + ? WHERE user_id = ? AND item_name = ?", [present.amount, userId, itemName]);
-                else db.run("INSERT INTO user_items VALUES (?, ?, ?)", [userId, itemName, present.amount]);
-             });
-        }
-        db.run("DELETE FROM presents WHERE id = ?", [presentId], (err) => {
-            if(err) return res.status(500).json({error: "Delete failed"});
-            res.json({success: true});
-        });
-    });
-});
-app.get('/api/announcements', (req, res) => {
-    db.all("SELECT * FROM announcements ORDER BY date DESC", [], (err, rows) => {
-         if (err) return res.status(500).json({ error: err.message });
-         res.json(rows);
-    });
-});
+// START
+syncIdolData();
 app.listen(PORT, () => {
-  console.log(`Backend Server running on http://localhost:${PORT}`);
-  syncIdolData();
+    console.log(`Backend Server running on http://localhost:${PORT}`);
 });

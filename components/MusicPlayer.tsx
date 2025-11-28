@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import ReactPlayer from 'react-player';
 import { MOCK_SONGS } from '../constants';
@@ -30,11 +29,14 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ isOpen, onClose }) => {
         setPlaying(!playing);
     };
 
+    // Cast to any to bypass type definition issues with ReactPlayer
+    const Player = ReactPlayer as any;
+
     return (
         <>
             {/* Hidden Player for Background Audio */}
             <div className="hidden">
-                <ReactPlayer 
+                <Player 
                     url={currentSong.url}
                     playing={playing}
                     volume={volume}

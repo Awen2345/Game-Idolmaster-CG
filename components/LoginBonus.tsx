@@ -25,7 +25,7 @@ const LoginBonus: React.FC<LoginBonusProps> = ({ result, onClose }) => {
     };
 
     return (
-        <div className="absolute inset-0 z-[600] bg-black/80 flex flex-col items-center justify-center animate-fade-in p-4 overflow-hidden">
+        <div className="absolute inset-0 z-[1000] bg-black/80 flex flex-col items-center justify-center p-4 overflow-hidden animate-[fadeIn_0.5s_ease-out]">
              
              <div className="relative w-full max-w-2xl h-[400px] flex items-center justify-center">
                  
@@ -124,6 +124,10 @@ const LoginBonus: React.FC<LoginBonusProps> = ({ result, onClose }) => {
              </button>
 
              <style>{`
+                 @keyframes fadeIn {
+                     from { opacity: 0; }
+                     to { opacity: 1; }
+                 }
                  @keyframes stamp {
                      0% { transform: scale(3); opacity: 0; }
                      80% { transform: scale(0.8); opacity: 1; }
