@@ -1,4 +1,17 @@
 {
+  "loginBonus": {
+    "resetHour": 0,
+    "cycleDays": 7,
+    "rewards": [
+      { "day": 1, "type": "MONEY", "amount": 5000, "message": "Day 1: Producer Funding" },
+      { "day": 2, "type": "ITEM_TICKET", "amount": 1, "message": "Day 2: Lesson Support" },
+      { "day": 3, "type": "ITEM_STAMINA", "amount": 1, "message": "Day 3: Energy Drink" },
+      { "day": 4, "type": "MONEY", "amount": 10000, "message": "Day 4: Bonus Funding" },
+      { "day": 5, "type": "ITEM_TICKET", "amount": 2, "message": "Day 5: Special Lesson" },
+      { "day": 6, "type": "ITEM_STAMINA", "amount": 2, "message": "Day 6: Full Power!" },
+      { "day": 7, "type": "JEWEL", "amount": 50, "message": "Day 7: Weekly Star Jewel!" }
+    ]
+  },
   "promoCodes": [
     {
       "code": "WELCOME2024",

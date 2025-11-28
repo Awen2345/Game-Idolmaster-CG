@@ -92,7 +92,7 @@ const getGameConfig = () => {
         const data = fs.readFileSync(CONFIG_PATH, 'utf8');
         return JSON.parse(data);
     } catch (e) {
-        return { chapters: [], promoCodes: [] };
+        return { chapters: [], promoCodes: [], loginBonus: { resetHour: 0, cycleDays: 7, rewards: [] } };
     }
 };
 
@@ -112,7 +112,6 @@ const recalcStamina = (user) => {
 
 // --- ROUTES ---
 
-// Updated Register to accept Type and give specific starter
 app.post('/api/auth/register', (req, res) => {
     const { username, password, type } = req.body;
     const prodType = type || 'CUTE'; // Default
@@ -154,70 +153,78 @@ app.post('/api/auth/login', (req, res) => {
 });
 
 app.post('/api/user/login_bonus', (req, res) => {
-    const { userId } = req.body;
-    
+    const { userId, action } = req.body; // action: 'check' or 'claim'
+    const config = getGameConfig();
+    const loginConfig = config.loginBonus || { resetHour: 0, rewards: [] };
+
     db.get("SELECT last_login_date, login_streak FROM users WHERE id = ?", [userId], (err, user) => {
         if (!user) return res.status(404).json({ error: "User not found" });
 
-        const now = Date.now();
-        const lastLogin = user.last_login_date || 0;
-        
-        // MODIFIED FOR TESTING: ALWAYS GRANT BONUS (0ms check)
-        const diffMs = now - lastLogin;
+        const now = new Date();
+        const lastLogin = new Date(user.last_login_date || 0);
 
-        // Ensure at least 500ms passed to prevent double-click issues/spam
-        if (diffMs < 500) {
-            return res.json({ claimed: true });
+        // Calculate "Game Day" based on resetHour
+        const getGameDay = (date) => {
+            const adjusted = new Date(date);
+            adjusted.setHours(adjusted.getHours() - loginConfig.resetHour);
+            return adjusted.toDateString(); // "Mon Jan 01 2024" (ignoring time)
+        };
+
+        const todayGameDay = getGameDay(now);
+        const lastGameDay = getGameDay(lastLogin);
+
+        const isNewDay = todayGameDay !== lastGameDay;
+
+        // If action is just CHECK, return status
+        if (action === 'check') {
+             const streak = isNewDay ? (user.login_streak % 7) + 1 : user.login_streak;
+             return res.json({ 
+                 canClaim: isNewDay, 
+                 streak: (user.login_streak || 0) 
+             });
         }
 
-        // Increment streak
+        // If action is CLAIM
+        if (!isNewDay) {
+            // Already claimed today, just return current status
+            const currentStreak = user.login_streak || 1;
+            const cycleDay = ((currentStreak - 1) % 7) + 1;
+            const todayReward = loginConfig.rewards.find(r => r.day === cycleDay) || loginConfig.rewards[0];
+            return res.json({
+                claimedToday: false,
+                streak: currentStreak,
+                todayConfig: todayReward,
+                allRewards: loginConfig.rewards
+            });
+        }
+
+        // --- PROCESS NEW CLAIM ---
         const newStreak = (user.login_streak || 0) + 1;
-
-        // Determine Reward based on 7-day cycle
         const cycleDay = ((newStreak - 1) % 7) + 1;
-        
-        let rewardType = 'MONEY';
-        let rewardAmount = 5000;
-        let message = "Daily Bonus!";
+        const reward = loginConfig.rewards.find(r => r.day === cycleDay) || { type: 'MONEY', amount: 1000, message: 'Bonus' };
 
-        if (cycleDay === 1) { rewardType = 'MONEY'; rewardAmount = 5000; message="Day 1: Starting Support!"; }
-        if (cycleDay === 2) { rewardType = 'ITEM_TICKET'; rewardAmount = 1; message="Day 2: Training Support!"; }
-        if (cycleDay === 3) { rewardType = 'ITEM_STAMINA'; rewardAmount = 1; message="Day 3: Energy Support!"; }
-        if (cycleDay === 4) { rewardType = 'MONEY'; rewardAmount = 10000; message="Day 4: Funding!"; }
-        if (cycleDay === 5) { rewardType = 'ITEM_TICKET'; rewardAmount = 2; message="Day 5: Training Time!"; }
-        if (cycleDay === 6) { rewardType = 'ITEM_STAMINA'; rewardAmount = 2; message="Day 6: More Energy!"; }
-        if (cycleDay === 7) { rewardType = 'JEWEL'; rewardAmount = 50; message="Day 7: Special Jewel Bonus!"; }
-
-        // Give Reward directly
-        if (rewardType === 'MONEY') {
-            db.run("UPDATE users SET money = money + ? WHERE id = ?", [rewardAmount, userId]);
-        } else if (rewardType === 'JEWEL') {
-            db.run("UPDATE users SET starJewels = starJewels + ? WHERE id = ?", [rewardAmount, userId]);
-        } else if (rewardType === 'ITEM_TICKET') {
-            const item = 'trainerTicket';
-             db.get("SELECT count FROM user_items WHERE user_id = ? AND item_name = ?", [userId, item], (err, iRow) => {
-                if (iRow) db.run("UPDATE user_items SET count = count + ? WHERE user_id = ? AND item_name = ?", [rewardAmount, userId, item]);
-                else db.run("INSERT INTO user_items VALUES (?, ?, ?)", [userId, item, rewardAmount]);
-             });
-        } else if (rewardType === 'ITEM_STAMINA') {
-            const item = 'staminaDrink';
-             db.get("SELECT count FROM user_items WHERE user_id = ? AND item_name = ?", [userId, item], (err, iRow) => {
-                if (iRow) db.run("UPDATE user_items SET count = count + ? WHERE user_id = ? AND item_name = ?", [rewardAmount, userId, item]);
-                else db.run("INSERT INTO user_items VALUES (?, ?, ?)", [userId, item, rewardAmount]);
-             });
+        // Give Reward
+        if (reward.type === 'MONEY') {
+            db.run("UPDATE users SET money = money + ? WHERE id = ?", [reward.amount, userId]);
+        } else if (reward.type === 'JEWEL') {
+            db.run("UPDATE users SET starJewels = starJewels + ? WHERE id = ?", [reward.amount, userId]);
+        } else if (reward.type.startsWith('ITEM')) {
+            const itemMap = { 'ITEM_TICKET': 'trainerTicket', 'ITEM_STAMINA': 'staminaDrink' };
+            const item = itemMap[reward.type];
+            db.get("SELECT count FROM user_items WHERE user_id = ? AND item_name = ?", [userId, item], (err, iRow) => {
+                if (iRow) db.run("UPDATE user_items SET count = count + ? WHERE user_id = ? AND item_name = ?", [reward.amount, userId, item]);
+                else db.run("INSERT INTO user_items VALUES (?, ?, ?)", [userId, item, reward.amount]);
+            });
         }
 
-        // Update User with current timestamp
-        db.run("UPDATE users SET last_login_date = ?, login_streak = ? WHERE id = ?", [now, newStreak, userId]);
+        // Update User
+        db.run("UPDATE users SET last_login_date = ?, login_streak = ? WHERE id = ?", [Date.now(), newStreak, userId]);
 
         res.json({
-            claimed: false,
-            result: {
-                day: cycleDay,
-                rewardType,
-                rewardAmount,
-                message
-            }
+            claimedToday: true,
+            streak: newStreak,
+            todayConfig: reward,
+            allRewards: loginConfig.rewards
         });
     });
 });

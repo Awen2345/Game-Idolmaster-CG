@@ -54,11 +54,18 @@ export interface UserState {
   };
 }
 
-export interface LoginBonusResult {
-    day: number; // 1-7
-    rewardType: 'MONEY' | 'JEWEL' | 'ITEM_STAMINA' | 'ITEM_TICKET';
-    rewardAmount: number;
+export interface LoginRewardConfig {
+    day: number;
+    type: 'MONEY' | 'JEWEL' | 'ITEM_STAMINA' | 'ITEM_TICKET';
+    amount: number;
     message: string;
+}
+
+export interface LoginBonusResult {
+    claimedToday: boolean; // Is it just claimed or viewed?
+    streak: number; // 1-7
+    todayConfig: LoginRewardConfig;
+    allRewards: LoginRewardConfig[];
 }
 
 export enum CommuType {

@@ -18,7 +18,7 @@ import { LoginBonusResult } from './types';
 
 const App: React.FC = () => {
   const { 
-    userId, user, idols, event, presents, announcements,
+    userId, user, idols, event, presents, announcements, canClaimBonus,
     login, register, logout, 
     useItem, pullGacha, retireIdols, trainIdol, specialTraining, starLesson, buyItem, doEventWork, doNormalWork,
     fetchChapters, fetchDialogs, markChapterRead, saveFanmadeStory, uploadSprite, fetchUserSprites, redeemPromoCode, claimPresent,
@@ -49,11 +49,22 @@ const App: React.FC = () => {
   // Check Login Bonus on Load
   useEffect(() => {
       if (userId) {
-          checkLoginBonus().then(bonus => {
-              if (bonus) setLoginBonus(bonus);
+          // Check status first
+          checkLoginBonus('check').then(() => {
+              // If we can claim, automatically try to claim and show modal
+              // Note: checkLoginBonus updates `canClaimBonus` state
           });
       }
   }, [userId]);
+
+  // Effect to auto-claim if available (simulating automatic login trigger)
+  useEffect(() => {
+      if (canClaimBonus && userId && !loginBonus) {
+           checkLoginBonus('claim').then(result => {
+               if (result) setLoginBonus(result);
+           });
+      }
+  }, [canClaimBonus, userId, loginBonus]);
 
   const handleBuy = (item: string, cost: number) => {
       buyItem(item, cost);
@@ -70,6 +81,12 @@ const App: React.FC = () => {
           return true;
       }
       return false;
+  };
+
+  const openLoginBonus = async () => {
+      // Just view status
+      const res = await checkLoginBonus('claim'); // 'claim' returns the current status object even if claimed
+      if (res) setLoginBonus(res);
   };
 
   const renderContent = () => {
@@ -100,21 +117,28 @@ const App: React.FC = () => {
                 </div>
             </div>
             
-            <div className="flex justify-center gap-6 z-20">
-                <div className="relative">
+            <div className="flex justify-center gap-4 z-20 flex-wrap">
+                <div className="relative group">
                     <button onClick={() => setShowNews(true)} className="w-14 h-14 bg-blue-600 rounded-full flex items-center justify-center shadow-lg border-2 border-white/30 hover:scale-110 transition-transform"><i className="fas fa-bullhorn text-xl text-white"></i></button>
                     <span className="text-[10px] font-bold mt-1 block drop-shadow-md">News</span>
                 </div>
-                <div className="relative">
+                <div className="relative group">
                     <button onClick={() => setShowPresents(true)} className="w-14 h-14 bg-pink-600 rounded-full flex items-center justify-center shadow-lg border-2 border-white/30 hover:scale-110 transition-transform"><i className="fas fa-gift text-xl text-white"></i></button>
                     {presents.length > 0 && (
                         <div className="absolute top-0 right-0 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full border border-white flex items-center justify-center">{presents.length}</div>
                     )}
                     <span className="text-[10px] font-bold mt-1 block drop-shadow-md">Presents</span>
                 </div>
-                <div className="relative">
+                <div className="relative group">
                     <button onClick={() => setShowPromo(true)} className="w-14 h-14 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center shadow-lg border-2 border-white/30 hover:scale-110 transition-transform"><i className="fas fa-ticket-alt text-xl text-white"></i></button>
                     <span className="text-[10px] font-bold mt-1 block drop-shadow-md">Promo</span>
+                </div>
+                <div className="relative group">
+                    <button onClick={openLoginBonus} className="w-14 h-14 bg-green-500 rounded-full flex items-center justify-center shadow-lg border-2 border-white/30 hover:scale-110 transition-transform"><i className="fas fa-calendar-check text-xl text-white"></i></button>
+                    {canClaimBonus && (
+                         <div className="absolute top-0 right-0 w-4 h-4 bg-red-500 rounded-full border border-white animate-pulse"></div>
+                    )}
+                    <span className="text-[10px] font-bold mt-1 block drop-shadow-md">Login</span>
                 </div>
             </div>
 

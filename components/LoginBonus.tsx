@@ -8,9 +8,11 @@ interface LoginBonusProps {
 }
 
 const LoginBonus: React.FC<LoginBonusProps> = ({ result, onClose }) => {
-    // The board has 7 slots. 
-    // In the reference: Top row (1-4), Bottom row (5-7) + Doodle
+    // Determine the days to display based on the streak
+    // If streak is 1-7, show 1-7. If 8-14, show 1-7 (repeating cycle visually, or next cycle)
+    // For simplicity, we just visualize the 1-7 cycle.
     const days = [1, 2, 3, 4, 5, 6, 7];
+    const currentStreakInCycle = ((result.streak - 1) % 7) + 1;
 
     const getRewardIcon = (type: string) => {
         if (type === 'JEWEL') return <i className="fas fa-star text-pink-500 text-3xl drop-shadow-sm"></i>;
@@ -36,7 +38,7 @@ const LoginBonus: React.FC<LoginBonusProps> = ({ result, onClose }) => {
 
                  {/* Speech Bubble */}
                  <div className="absolute left-20 bottom-32 z-30 bg-black/80 text-white text-xs p-3 rounded-xl border border-white/50 max-w-[150px] text-center animate-bounce shadow-lg">
-                     {result.message}
+                     {result.todayConfig.message}
                      <div className="absolute bottom-[-6px] left-4 w-3 h-3 bg-black/80 border-b border-r border-white/50 transform rotate-45"></div>
                  </div>
 
@@ -60,17 +62,18 @@ const LoginBonus: React.FC<LoginBonusProps> = ({ result, onClose }) => {
                          {/* Stamps Grid */}
                          <div className="grid grid-cols-4 grid-rows-2 gap-3 h-[200px]">
                              {days.map(d => {
-                                 const isToday = d === result.day;
-                                 const isPast = d < result.day;
+                                 // "Is Past" means day index is less than current streak.
+                                 // "Is Today" means day index equals current streak.
+                                 // BUT: If result.claimedToday is false, then today is technically NOT stamped yet visually until animation plays?
+                                 // Let's assume if we are viewing this screen, we treat "today" as stamped or about to be stamped.
                                  
-                                 // Determine Reward Type for this day (Simplified logic based on cycle)
-                                 let rType = 'MONEY';
-                                 let rAmt = 5000;
-                                 if (d === 7) { rType = 'JEWEL'; rAmt = 50; }
-                                 else if (d === 2 || d === 5) { rType = 'ITEM'; rAmt = 1; }
+                                 const isToday = d === currentStreakInCycle;
+                                 const isPast = d < currentStreakInCycle;
                                  
-                                 // If it's today, show the actual result reward
-                                 if (isToday) { rType = result.rewardType; rAmt = result.rewardAmount; }
+                                 // Find reward from config
+                                 const rewardConfig = result.allRewards.find(r => r.day === d) || result.allRewards[0];
+                                 const rType = rewardConfig.type;
+                                 const rAmt = rewardConfig.amount;
 
                                  return (
                                      <div key={d} className="relative bg-white border-2 border-dashed border-blue-200 rounded-lg flex flex-col items-center justify-center p-1 shadow-sm">
@@ -88,7 +91,7 @@ const LoginBonus: React.FC<LoginBonusProps> = ({ result, onClose }) => {
                                          </div>
 
                                          {/* Red Stamp Overlay (Completed) */}
-                                         {(isPast || isToday) && (
+                                         {(isPast || (isToday && result.claimedToday)) && (
                                              <div className="absolute inset-0 flex items-center justify-center z-20 animate-[stamp_0.3s_ease-out]">
                                                  <div className="w-14 h-14 border-4 border-red-500/80 rounded-full flex items-center justify-center transform -rotate-12 bg-white/10 backdrop-blur-[1px]">
                                                      <div className="w-12 h-12 border border-red-500/80 rounded-full flex items-center justify-center">

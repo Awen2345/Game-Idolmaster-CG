@@ -29,6 +29,7 @@ export const useGameEngine = () => {
   const [error, setError] = useState<string | null>(null);
   const [presents, setPresents] = useState<Present[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [canClaimBonus, setCanClaimBonus] = useState(false); // Track if bonus is available
 
   const login = async (u: string, p: string) => {
     try {
@@ -113,18 +114,26 @@ export const useGameEngine = () => {
     }
   }, [fetchData, userId]);
 
-  const checkLoginBonus = async (): Promise<LoginBonusResult | null> => {
+  // Updated to check status first
+  const checkLoginBonus = async (action: 'check' | 'claim' = 'check'): Promise<LoginBonusResult | null> => {
       if (!userId) return null;
       try {
           const res = await fetch(`${API_URL}/user/login_bonus`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ userId })
+              body: JSON.stringify({ userId, action })
           });
           const data = await res.json();
-          if (data.claimed === false && data.result) {
-              fetchData(); // Refresh to show new balance
-              return data.result;
+          
+          if (action === 'check') {
+              setCanClaimBonus(data.canClaim);
+              return null; // Just status update
+          }
+          
+          if (action === 'claim') {
+              fetchData(); // Refresh UI after claim
+              setCanClaimBonus(false);
+              return data;
           }
       } catch(e) { console.error(e); }
       return null;
@@ -450,7 +459,7 @@ export const useGameEngine = () => {
   };
 
   return {
-    userId, user, idols, event, loading, error, presents, announcements,
+    userId, user, idols, event, loading, error, presents, announcements, canClaimBonus,
     login, register, logout, useItem, pullGacha, retireIdols, trainIdol, specialTraining, starLesson, buyItem, doEventWork, doNormalWork,
     fetchChapters, fetchDialogs, markChapterRead, saveFanmadeStory, uploadSprite, fetchUserSprites, redeemPromoCode,
     claimPresent,
