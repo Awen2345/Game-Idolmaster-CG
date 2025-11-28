@@ -97,14 +97,26 @@ const getGameConfig = () => {
 };
 
 const recalcStamina = (user) => {
-  if (user.stamina >= user.maxStamina) return user;
+  if (!user) return null;
   const now = Date.now();
-  const elapsed = now - user.lastStaminaUpdate;
+  const lastUpdate = user.lastStaminaUpdate || now; // Safety default
+  
+  if (user.stamina >= user.maxStamina) {
+       // Just update timestamp if full to prevent clock drift
+       return { ...user, lastStaminaUpdate: now };
+  }
+  
+  const elapsed = now - lastUpdate;
   if (elapsed >= STAMINA_REGEN_MS) {
     const recovered = Math.floor(elapsed / STAMINA_REGEN_MS);
     const newStamina = Math.min(user.maxStamina, user.stamina + recovered);
     const newLastUpdate = now - (elapsed % STAMINA_REGEN_MS);
-    db.run("UPDATE users SET stamina = ?, lastStaminaUpdate = ? WHERE id = ?", [newStamina, newLastUpdate, user.id]);
+    
+    // Perform async update (fire and forget for response speed, but logs errors)
+    db.run("UPDATE users SET stamina = ?, lastStaminaUpdate = ? WHERE id = ?", [newStamina, newLastUpdate, user.id], (err) => {
+        if(err) console.error("Stamina Update Error:", err);
+    });
+    
     return { ...user, stamina: newStamina, lastStaminaUpdate: newLastUpdate };
   }
   return user;
@@ -191,7 +203,7 @@ app.post('/api/user/login_bonus', (req, res) => {
             const cycleDay = ((currentStreak - 1) % 7) + 1;
             const todayReward = loginConfig.rewards.find(r => r.day === cycleDay) || loginConfig.rewards[0];
             return res.json({
-                claimedToday: false,
+                claimedToday: true, // Fixed: Explicitly tell frontend it is claimed
                 streak: currentStreak,
                 todayConfig: todayReward,
                 allRewards: loginConfig.rewards
@@ -221,7 +233,7 @@ app.post('/api/user/login_bonus', (req, res) => {
         db.run("UPDATE users SET last_login_date = ?, login_streak = ? WHERE id = ?", [Date.now(), newStreak, userId]);
 
         res.json({
-            claimedToday: true,
+            claimedToday: false, // It was new, so frontend knows to show stamp animation
             streak: newStreak,
             todayConfig: reward,
             allRewards: loginConfig.rewards
@@ -232,9 +244,20 @@ app.post('/api/user/login_bonus', (req, res) => {
 app.get('/api/user/:id', (req, res) => {
   const userId = req.params.id;
   db.get("SELECT * FROM users WHERE id = ?", [userId], (err, user) => {
+    if (err) {
+        console.error("DB Error on getUser:", err);
+        return res.status(500).json({ error: "Database error" });
+    }
     if (!user) return res.status(404).json({ error: "User not found" });
+    
+    // Safe recalc
     user = recalcStamina(user);
+    
     db.all("SELECT item_name, count FROM user_items WHERE user_id = ?", [userId], (err, items) => {
+      if(err) {
+         // Return user without items if item fetch fails
+         return res.json(user);
+      }
       const itemsMap = {};
       items.forEach(i => itemsMap[i.item_name] = i.count);
       const fullUser = {

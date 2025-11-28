@@ -71,7 +71,9 @@ export const useGameEngine = () => {
   const fetchData = useCallback(async () => {
     if (!userId) return;
     try {
-      setLoading(true);
+      // Only set global loading on first load to prevent UI flickering
+      if (user.id === 0) setLoading(true);
+      
       const userRes = await fetch(`${API_URL}/user/${userId}`);
       if (!userRes.ok) throw new Error("Connection failed");
       const userData = await userRes.json();
@@ -97,14 +99,18 @@ export const useGameEngine = () => {
       const newsRes = await fetch(`${API_URL}/announcements`);
       setAnnouncements(await newsRes.json());
 
+      // Clear error if successful
       setError(null);
     } catch (e: any) {
       console.error("Fetch error", e);
-      setError("Cannot connect to server.");
+      // Only set global error if we have NO data. If we have data, keep showing it.
+      if (user.id === 0) {
+          setError("Cannot connect to server.");
+      }
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, [userId, user.id]);
 
   useEffect(() => {
     if (userId) {
@@ -131,7 +137,8 @@ export const useGameEngine = () => {
           }
           
           if (action === 'claim') {
-              fetchData(); // Refresh UI after claim
+              // We intentionally don't await fetchData here to prevent blocking UI
+              fetchData(); 
               setCanClaimBonus(false);
               return data;
           }
