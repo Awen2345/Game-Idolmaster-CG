@@ -26,11 +26,16 @@ db.serialize(() => {
     maxStamina INTEGER,
     lastStaminaUpdate INTEGER,
     money INTEGER,
-    starJewels INTEGER
+    starJewels INTEGER,
+    last_login_date INTEGER, -- New: Timestamp for bonus
+    login_streak INTEGER DEFAULT 0 -- New: Days streak
   )`);
   
   // Migration for type if missing
   db.run("ALTER TABLE users ADD COLUMN type TEXT", (err) => {});
+  // Migration for login bonus
+  db.run("ALTER TABLE users ADD COLUMN last_login_date INTEGER", (err) => {});
+  db.run("ALTER TABLE users ADD COLUMN login_streak INTEGER DEFAULT 0", (err) => {});
 
   // 2. Items Table
   db.run(`CREATE TABLE IF NOT EXISTS user_items (

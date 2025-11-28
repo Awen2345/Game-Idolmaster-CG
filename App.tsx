@@ -12,7 +12,9 @@ import AnnouncementModal from './components/AnnouncementModal';
 import PromoModal from './components/PromoModal';
 import LiveBattle from './components/LiveBattle';
 import Work from './components/Work'; // New Work Component
+import LoginBonus from './components/LoginBonus'; // New
 import { useGameEngine } from './services/gameService';
+import { LoginBonusResult } from './types';
 
 const App: React.FC = () => {
   const { 
@@ -20,7 +22,7 @@ const App: React.FC = () => {
     login, register, logout, 
     useItem, pullGacha, retireIdols, trainIdol, specialTraining, starLesson, buyItem, doEventWork, doNormalWork,
     fetchChapters, fetchDialogs, markChapterRead, saveFanmadeStory, uploadSprite, fetchUserSprites, redeemPromoCode, claimPresent,
-    fetchDeck, saveDeck, findOpponent, completeBattle,
+    fetchDeck, saveDeck, findOpponent, completeBattle, checkLoginBonus,
     error 
   } = useGameEngine();
   
@@ -29,6 +31,7 @@ const App: React.FC = () => {
   const [showNews, setShowNews] = useState(false);
   const [showPromo, setShowPromo] = useState(false);
   const [showBattle, setShowBattle] = useState(false);
+  const [loginBonus, setLoginBonus] = useState<LoginBonusResult | null>(null);
   const [userDeckIds, setUserDeckIds] = useState<string[]>([]);
 
   useEffect(() => {
@@ -42,6 +45,15 @@ const App: React.FC = () => {
           fetchDeck().then(ids => setUserDeckIds(ids || []));
       }
   }, [showBattle, userId, fetchDeck]);
+
+  // Check Login Bonus on Load
+  useEffect(() => {
+      if (userId) {
+          checkLoginBonus().then(bonus => {
+              if (bonus) setLoginBonus(bonus);
+          });
+      }
+  }, [userId]);
 
   const handleBuy = (item: string, cost: number) => {
       buyItem(item, cost);
@@ -165,6 +177,8 @@ const App: React.FC = () => {
                 {showNews && <AnnouncementModal announcements={announcements} onClose={() => setShowNews(false)} />}
                 <PromoModal isOpen={showPromo} onClose={() => setShowPromo(false)} onRedeem={redeemPromoCode} />
                 
+                {loginBonus && <LoginBonus result={loginBonus} onClose={() => setLoginBonus(null)} />}
+
                 {showBattle && (
                     <LiveBattle 
                         userId={userId} 

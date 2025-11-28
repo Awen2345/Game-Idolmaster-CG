@@ -54,6 +54,13 @@ export interface UserState {
   };
 }
 
+export interface LoginBonusResult {
+    day: number; // 1-7
+    rewardType: 'MONEY' | 'JEWEL' | 'ITEM_STAMINA' | 'ITEM_TICKET';
+    rewardAmount: number;
+    message: string;
+}
+
 export enum CommuType {
   STORY = 'STORY',
   EVENT = 'EVENT',

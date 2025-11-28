@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { UserState, Idol, EventData, Chapter, DialogLine, UserSprite, Present, Announcement, BattleOpponent, BattleResult, IdolType, WorkResult } from '../types';
+import { UserState, Idol, EventData, Chapter, DialogLine, UserSprite, Present, Announcement, BattleOpponent, BattleResult, IdolType, WorkResult, LoginBonusResult } from '../types';
 
 const API_URL = '/api';
 
@@ -112,6 +112,23 @@ export const useGameEngine = () => {
         return () => clearInterval(interval);
     }
   }, [fetchData, userId]);
+
+  const checkLoginBonus = async (): Promise<LoginBonusResult | null> => {
+      if (!userId) return null;
+      try {
+          const res = await fetch(`${API_URL}/user/login_bonus`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ userId })
+          });
+          const data = await res.json();
+          if (data.claimed === false && data.result) {
+              fetchData(); // Refresh to show new balance
+              return data.result;
+          }
+      } catch(e) { console.error(e); }
+      return null;
+  };
 
   const useItem = async (itemName: 'staminaDrink' | 'trainerTicket') => {
     if (!userId) return;
@@ -437,6 +454,7 @@ export const useGameEngine = () => {
     login, register, logout, useItem, pullGacha, retireIdols, trainIdol, specialTraining, starLesson, buyItem, doEventWork, doNormalWork,
     fetchChapters, fetchDialogs, markChapterRead, saveFanmadeStory, uploadSprite, fetchUserSprites, redeemPromoCode,
     claimPresent,
-    fetchDeck, saveDeck, findOpponent, completeBattle
+    fetchDeck, saveDeck, findOpponent, completeBattle,
+    checkLoginBonus
   };
 };

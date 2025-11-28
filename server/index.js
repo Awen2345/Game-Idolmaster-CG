@@ -153,6 +153,84 @@ app.post('/api/auth/login', (req, res) => {
     });
 });
 
+app.post('/api/user/login_bonus', (req, res) => {
+    const { userId } = req.body;
+    
+    db.get("SELECT last_login_date, login_streak FROM users WHERE id = ?", [userId], (err, user) => {
+        if (!user) return res.status(404).json({ error: "User not found" });
+
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        const lastLogin = user.last_login_date ? new Date(user.last_login_date) : new Date(0);
+        const lastLoginNormalized = new Date(lastLogin.getFullYear(), lastLogin.getMonth(), lastLogin.getDate()).getTime();
+        
+        // Already claimed today
+        if (today === lastLoginNormalized) {
+            return res.json({ claimed: true });
+        }
+
+        // Check if streak continues (difference is exactly 1 day or less for loose streak)
+        // For simple game logic: if missed a day, resets to 1, otherwise increment
+        // 86400000 ms = 1 day
+        const diffDays = (today - lastLoginNormalized) / 86400000;
+        
+        let newStreak = 1;
+        if (diffDays <= 1.5) { // Allow some leniency or just exact day
+             newStreak = (user.login_streak || 0) + 1;
+        } else {
+             newStreak = 1;
+        }
+
+        // Determine Reward based on 7-day cycle
+        // Days 1-6: Normal, Day 7: Special
+        const cycleDay = ((newStreak - 1) % 7) + 1;
+        
+        let rewardType = 'MONEY';
+        let rewardAmount = 5000;
+        let message = "Daily Bonus!";
+
+        if (cycleDay === 1) { rewardType = 'MONEY'; rewardAmount = 5000; message="Day 1: Starting Support!"; }
+        if (cycleDay === 2) { rewardType = 'ITEM_TICKET'; rewardAmount = 1; message="Day 2: Training Support!"; }
+        if (cycleDay === 3) { rewardType = 'ITEM_STAMINA'; rewardAmount = 1; message="Day 3: Energy Support!"; }
+        if (cycleDay === 4) { rewardType = 'MONEY'; rewardAmount = 10000; message="Day 4: Funding!"; }
+        if (cycleDay === 5) { rewardType = 'ITEM_TICKET'; rewardAmount = 2; message="Day 5: Training Time!"; }
+        if (cycleDay === 6) { rewardType = 'ITEM_STAMINA'; rewardAmount = 2; message="Day 6: More Energy!"; }
+        if (cycleDay === 7) { rewardType = 'JEWEL'; rewardAmount = 50; message="Day 7: Special Jewel Bonus!"; }
+
+        // Give Reward directly
+        if (rewardType === 'MONEY') {
+            db.run("UPDATE users SET money = money + ? WHERE id = ?", [rewardAmount, userId]);
+        } else if (rewardType === 'JEWEL') {
+            db.run("UPDATE users SET starJewels = starJewels + ? WHERE id = ?", [rewardAmount, userId]);
+        } else if (rewardType === 'ITEM_TICKET') {
+            const item = 'trainerTicket';
+             db.get("SELECT count FROM user_items WHERE user_id = ? AND item_name = ?", [userId, item], (err, iRow) => {
+                if (iRow) db.run("UPDATE user_items SET count = count + ? WHERE user_id = ? AND item_name = ?", [rewardAmount, userId, item]);
+                else db.run("INSERT INTO user_items VALUES (?, ?, ?)", [userId, item, rewardAmount]);
+             });
+        } else if (rewardType === 'ITEM_STAMINA') {
+            const item = 'staminaDrink';
+             db.get("SELECT count FROM user_items WHERE user_id = ? AND item_name = ?", [userId, item], (err, iRow) => {
+                if (iRow) db.run("UPDATE user_items SET count = count + ? WHERE user_id = ? AND item_name = ?", [rewardAmount, userId, item]);
+                else db.run("INSERT INTO user_items VALUES (?, ?, ?)", [userId, item, rewardAmount]);
+             });
+        }
+
+        // Update User
+        db.run("UPDATE users SET last_login_date = ?, login_streak = ? WHERE id = ?", [today, newStreak, userId]);
+
+        res.json({
+            claimed: false,
+            result: {
+                day: cycleDay,
+                rewardType,
+                rewardAmount,
+                message
+            }
+        });
+    });
+});
+
 app.get('/api/user/:id', (req, res) => {
   const userId = req.params.id;
   db.get("SELECT * FROM users WHERE id = ?", [userId], (err, user) => {
