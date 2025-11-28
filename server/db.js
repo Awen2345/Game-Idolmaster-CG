@@ -8,6 +8,8 @@ const db = new sqlite3.Database(dbPath, (err) => {
     console.error('Error opening database', err.message);
   } else {
     console.log('Connected to the SQLite database.');
+    // Enable Write-Ahead Logging to fix "Database Locked" errors during concurrent fetch/updates
+    db.run("PRAGMA journal_mode = WAL;");
   }
 });
 

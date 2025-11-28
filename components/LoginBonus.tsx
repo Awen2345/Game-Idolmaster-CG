@@ -9,8 +9,6 @@ interface LoginBonusProps {
 
 const LoginBonus: React.FC<LoginBonusProps> = ({ result, onClose }) => {
     // Determine the days to display based on the streak
-    // If streak is 1-7, show 1-7. If 8-14, show 1-7 (repeating cycle visually, or next cycle)
-    // For simplicity, we just visualize the 1-7 cycle.
     const days = [1, 2, 3, 4, 5, 6, 7];
     const currentStreakInCycle = ((result.streak - 1) % 7) + 1;
 
@@ -62,13 +60,13 @@ const LoginBonus: React.FC<LoginBonusProps> = ({ result, onClose }) => {
                          {/* Stamps Grid */}
                          <div className="grid grid-cols-4 grid-rows-2 gap-3 h-[200px]">
                              {days.map(d => {
-                                 // "Is Past" means day index is less than current streak.
-                                 // "Is Today" means day index equals current streak.
-                                 // BUT: If result.claimedToday is false, then today is technically NOT stamped yet visually until animation plays?
-                                 // Let's assume if we are viewing this screen, we treat "today" as stamped or about to be stamped.
-                                 
                                  const isToday = d === currentStreakInCycle;
                                  const isPast = d < currentStreakInCycle;
+                                 
+                                 // Logic Fix: Show stamp if day is past OR if it is today. 
+                                 // If it's today and `!result.claimedToday` (meaning new claim), we animate it.
+                                 const showStamp = isPast || isToday;
+                                 const shouldAnimate = isToday && !result.claimedToday;
                                  
                                  // Find reward from config
                                  const rewardConfig = result.allRewards.find(r => r.day === d) || result.allRewards[0];
@@ -90,9 +88,9 @@ const LoginBonus: React.FC<LoginBonusProps> = ({ result, onClose }) => {
                                             {getRewardName(rType, rAmt)}
                                          </div>
 
-                                         {/* Red Stamp Overlay (Completed) */}
-                                         {(isPast || (isToday && result.claimedToday)) && (
-                                             <div className="absolute inset-0 flex items-center justify-center z-20 animate-[stamp_0.3s_ease-out]">
+                                         {/* Red Stamp Overlay */}
+                                         {showStamp && (
+                                             <div className={`absolute inset-0 flex items-center justify-center z-20 ${shouldAnimate ? 'animate-[stamp_0.4s_cubic-bezier(0.175,0.885,0.32,1.275)_forwards]' : ''}`}>
                                                  <div className="w-14 h-14 border-4 border-red-500/80 rounded-full flex items-center justify-center transform -rotate-12 bg-white/10 backdrop-blur-[1px]">
                                                      <div className="w-12 h-12 border border-red-500/80 rounded-full flex items-center justify-center">
                                                          <span className="text-red-600 font-black text-xl" style={{ fontFamily: 'serif' }}>
@@ -133,7 +131,7 @@ const LoginBonus: React.FC<LoginBonusProps> = ({ result, onClose }) => {
                  }
                  @keyframes stamp {
                      0% { transform: scale(3); opacity: 0; }
-                     80% { transform: scale(0.8); opacity: 1; }
+                     60% { transform: scale(0.8); opacity: 1; }
                      100% { transform: scale(1); }
                  }
              `}</style>
