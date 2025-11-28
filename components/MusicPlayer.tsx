@@ -39,7 +39,7 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ isOpen, onClose }) => {
                     playing={playing}
                     volume={volume}
                     onEnded={handleNext}
-                    onProgress={({ played }) => setPlayed(played)}
+                    onProgress={(state: any) => setPlayed(state.played)}
                     width="0"
                     height="0"
                 />

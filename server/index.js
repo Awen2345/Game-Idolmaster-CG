@@ -159,27 +159,19 @@ app.post('/api/user/login_bonus', (req, res) => {
     db.get("SELECT last_login_date, login_streak FROM users WHERE id = ?", [userId], (err, user) => {
         if (!user) return res.status(404).json({ error: "User not found" });
 
-        const now = new Date();
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-        const lastLogin = user.last_login_date ? new Date(user.last_login_date) : new Date(0);
-        const lastLoginNormalized = new Date(lastLogin.getFullYear(), lastLogin.getMonth(), lastLogin.getDate()).getTime();
+        const now = Date.now();
+        const lastLogin = user.last_login_date || 0;
         
-        // Already claimed today
-        if (today === lastLoginNormalized) {
+        // MODIFIED FOR TESTING: Check if 1 second (1000ms) has passed instead of 1 day
+        const diffMs = now - lastLogin;
+
+        // If less than 1 second has passed, it is claimed
+        if (diffMs < 1000) {
             return res.json({ claimed: true });
         }
 
-        // Check if streak continues (difference is exactly 1 day or less for loose streak)
-        // For simple game logic: if missed a day, resets to 1, otherwise increment
-        // 86400000 ms = 1 day
-        const diffDays = (today - lastLoginNormalized) / 86400000;
-        
-        let newStreak = 1;
-        if (diffDays <= 1.5) { // Allow some leniency or just exact day
-             newStreak = (user.login_streak || 0) + 1;
-        } else {
-             newStreak = 1;
-        }
+        // Increment streak every time (Simulating fast forward)
+        const newStreak = (user.login_streak || 0) + 1;
 
         // Determine Reward based on 7-day cycle
         // Days 1-6: Normal, Day 7: Special
@@ -216,8 +208,8 @@ app.post('/api/user/login_bonus', (req, res) => {
              });
         }
 
-        // Update User
-        db.run("UPDATE users SET last_login_date = ?, login_streak = ? WHERE id = ?", [today, newStreak, userId]);
+        // Update User with current timestamp
+        db.run("UPDATE users SET last_login_date = ?, login_streak = ? WHERE id = ?", [now, newStreak, userId]);
 
         res.json({
             claimed: false,
