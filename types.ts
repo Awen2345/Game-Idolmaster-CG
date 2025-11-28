@@ -6,22 +6,34 @@ export enum Rarity {
   SSR = 'SSR'
 }
 
+export enum IdolType {
+  CUTE = 'CUTE',
+  COOL = 'COOL',
+  PASSION = 'PASSION'
+}
+
 export interface Idol {
   id: string;
   name: string;
   rarity: Rarity;
+  type: IdolType;
   level: number;
   maxLevel: number;
   image: string; // URL
   vocal: number;
   dance: number;
   visual: number;
+  attack: number; // New: Derived from stats
+  defense: number; // New: Derived from stats
+  affection: number; // New: 0 to Max
+  maxAffection: number; // New
   isLocked: boolean;
 }
 
 export interface UserState {
   id: number;
   name: string;
+  type: IdolType; // Producer Type
   level: number;
   exp: number;
   maxExp: number;
@@ -147,4 +159,20 @@ export interface BattleResult {
         money: number;
         jewels: number;
     }
+}
+
+export interface WorkResult {
+    success: boolean;
+    newStamina: number;
+    expGained: number;
+    moneyGained: number;
+    affectionGained: number;
+    progress: number; // 0-100 for current zone
+    drops: {
+        type: 'IDOL' | 'ITEM';
+        name: string;
+        rarity?: string;
+    } | null;
+    isLevelUp: boolean;
+    isZoneClear: boolean;
 }

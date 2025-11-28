@@ -11,15 +11,14 @@ const db = new sqlite3.Database(dbPath, (err) => {
   }
 });
 
-const MAX_STAMINA_BASE = 50;
-
 db.serialize(() => {
-  // 1. Users Table
+  // 1. Users Table - Added type
   db.run(`CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE,
     password TEXT, 
     name TEXT,
+    type TEXT, -- CUTE, COOL, PASSION
     level INTEGER,
     exp INTEGER,
     maxExp INTEGER,
@@ -29,6 +28,9 @@ db.serialize(() => {
     money INTEGER,
     starJewels INTEGER
   )`);
+  
+  // Migration for type if missing
+  db.run("ALTER TABLE users ADD COLUMN type TEXT", (err) => {});
 
   // 2. Items Table
   db.run(`CREATE TABLE IF NOT EXISTS user_items (
@@ -38,27 +40,38 @@ db.serialize(() => {
     PRIMARY KEY (user_id, item_name)
   )`);
 
-  // 3. Idol Templates
+  // 3. Idol Templates - Added attribute, attack, defense
   db.run(`CREATE TABLE IF NOT EXISTS idol_templates (
     id TEXT PRIMARY KEY,
     name TEXT,
     rarity TEXT,
+    type TEXT, -- CUTE, COOL, PASSION
     maxLevel INTEGER,
     image TEXT,
     vocal INTEGER,
     dance INTEGER,
-    visual INTEGER
+    visual INTEGER,
+    attack INTEGER,
+    defense INTEGER
   )`);
 
-  // 4. User Idols
+  // Migration
+  db.run("ALTER TABLE idol_templates ADD COLUMN type TEXT", () => {});
+  db.run("ALTER TABLE idol_templates ADD COLUMN attack INTEGER", () => {});
+  db.run("ALTER TABLE idol_templates ADD COLUMN defense INTEGER", () => {});
+
+  // 4. User Idols - Added affection
   db.run(`CREATE TABLE IF NOT EXISTS user_idols (
     id TEXT PRIMARY KEY,
     user_id INTEGER,
     template_id TEXT,
     level INTEGER,
+    affection INTEGER DEFAULT 0,
     isLocked INTEGER,
     FOREIGN KEY(template_id) REFERENCES idol_templates(id)
   )`);
+  
+  db.run("ALTER TABLE user_idols ADD COLUMN affection INTEGER DEFAULT 0", () => {});
 
   // 5. Events Table
   db.run(`CREATE TABLE IF NOT EXISTS events (
@@ -126,11 +139,6 @@ db.serialize(() => {
     FOREIGN KEY(chapter_id) REFERENCES fan_chapters(id)
   )`);
   
-  // Migration for existing DB
-  db.run("ALTER TABLE fan_dialogs ADD COLUMN custom_sprite_url TEXT", (err) => {
-      // Ignore if exists
-  });
-
   // 12. User Custom Sprites
   db.run(`CREATE TABLE IF NOT EXISTS user_sprites (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -184,7 +192,7 @@ db.serialize(() => {
     PRIMARY KEY (user_id, chapter_id)
   )`);
 
-  // 18. User Battle Decks (NEW)
+  // 18. User Battle Decks
   db.run(`CREATE TABLE IF NOT EXISTS user_decks (
     user_id INTEGER PRIMARY KEY,
     slot1_id TEXT,
@@ -193,7 +201,34 @@ db.serialize(() => {
     slot4_id TEXT
   )`);
 
-  // --- SEED DATA ---
+  // 19. Work Zones (Static Data)
+  db.run(`CREATE TABLE IF NOT EXISTS work_zones (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    area_name TEXT,
+    zone_name TEXT,
+    stamina_cost INTEGER,
+    exp_gain INTEGER
+  )`);
+
+  // 20. User Work Progress
+  db.run(`CREATE TABLE IF NOT EXISTS work_progress (
+    user_id INTEGER PRIMARY KEY,
+    current_zone_id INTEGER DEFAULT 1,
+    progress_percent INTEGER DEFAULT 0
+  )`);
+
+  // --- SEED WORK ZONES ---
+  db.get("SELECT count(*) as count FROM work_zones", (err, row) => {
+      if (row && row.count === 0) {
+          db.run("INSERT INTO work_zones (area_name, zone_name, stamina_cost, exp_gain) VALUES ('Harajuku', 'Area 1-1', 2, 2)");
+          db.run("INSERT INTO work_zones (area_name, zone_name, stamina_cost, exp_gain) VALUES ('Harajuku', 'Area 1-2', 2, 2)");
+          db.run("INSERT INTO work_zones (area_name, zone_name, stamina_cost, exp_gain) VALUES ('Harajuku', 'Area 1-3', 3, 4)");
+          db.run("INSERT INTO work_zones (area_name, zone_name, stamina_cost, exp_gain) VALUES ('Shibuya', 'Area 2-1', 4, 6)");
+          db.run("INSERT INTO work_zones (area_name, zone_name, stamina_cost, exp_gain) VALUES ('Shibuya', 'Area 2-2', 5, 8)");
+      }
+  });
+
+  // --- EXISTING SEEDS ---
   db.get("SELECT id FROM events WHERE id = 'evt_live_groove'", (err, row) => {
     if (!row) {
         const now = Date.now();
@@ -208,7 +243,7 @@ db.serialize(() => {
   db.get("SELECT id FROM announcements", (err, row) => {
       if(!row) {
           db.run("INSERT INTO announcements (title, content, date, banner_url) VALUES (?, ?, ?, ?)", 
-            ["Live Battle Arena Open!", "Challenge other producers or train against bots to earn rewards!", now + 100, "https://hidamarirhodonite.kirara.ca/spread/100523.png"]);
+            ["Work System Update!", "You can now perform 'Work' to level up and gain affection with your idols.", now + 100, "https://hidamarirhodonite.kirara.ca/spread/100523.png"]);
       }
   });
 });

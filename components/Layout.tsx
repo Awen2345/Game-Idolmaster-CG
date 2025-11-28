@@ -13,7 +13,7 @@ interface LayoutProps {
   onLogout: () => void;
   isEventActive?: boolean;
   onOpenPromo?: () => void;
-  onOpenBattle?: () => void; // New Prop
+  onOpenBattle?: () => void;
 }
 
 const Layout: React.FC<LayoutProps> = ({ user, children, activeTab, onTabChange, onUseItem, onLogout, isEventActive, onOpenPromo, onOpenBattle }) => {
@@ -98,20 +98,13 @@ const Layout: React.FC<LayoutProps> = ({ user, children, activeTab, onTabChange,
       {/* Bottom Navigation */}
       <div className="bg-gray-800 border-t border-gray-700 p-1 flex justify-between items-center h-16 shrink-0 z-50 relative">
         <NavButton icon="home" label="Home" active={activeTab === 'HOME'} onClick={() => onTabChange('HOME')} />
+        {/* NEW WORK BUTTON */}
+        <NavButton icon="briefcase" label="Work" active={activeTab === 'WORK'} onClick={() => onTabChange('WORK')} />
+        
         <NavButton icon="users" label="Idols" active={activeTab === 'IDOLS'} onClick={() => onTabChange('IDOLS')} />
-        
-        {/* COMMU IS BACK PERMANENTLY */}
         <NavButton icon="book-open" label="Commu" active={activeTab === 'COMMU'} onClick={() => onTabChange('COMMU')} />
-        
         <NavButton icon="star" label="Gacha" active={activeTab === 'GACHA'} onClick={() => onTabChange('GACHA')} />
-        
-        {/* Menu Button toggles overlay */}
-        <NavButton 
-            icon="bars" 
-            label="Menu" 
-            active={isMenuOpen} 
-            onClick={() => setIsMenuOpen(!isMenuOpen)} 
-        />
+        <NavButton icon="bars" label="Menu" active={isMenuOpen} onClick={() => setIsMenuOpen(!isMenuOpen)} />
       </div>
     </div>
   );

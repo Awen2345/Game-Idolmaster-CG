@@ -1,5 +1,6 @@
+
 import React, { useState, useMemo } from 'react';
-import { Idol, Rarity } from '../types';
+import { Idol, Rarity, IdolType } from '../types';
 
 interface IdolManagerProps {
   idols: Idol[];
@@ -21,11 +22,9 @@ const IdolManager: React.FC<IdolManagerProps> = ({ idols, onRetire, onTrain, tra
   const toggleSelect = (id: string) => {
     if (mode === 'VIEW') return;
     if (mode === 'TRAIN') {
-        // Only select one for training
         setSelectedIds([id]);
         return;
     }
-    // Multi select for Retire
     setSelectedIds(prev => prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]);
   };
 
@@ -33,7 +32,7 @@ const IdolManager: React.FC<IdolManagerProps> = ({ idols, onRetire, onTrain, tra
     if (isProcessing) return;
     
     if (mode === 'RETIRE') {
-      if (confirm(`Retire ${selectedIds.length} idols? This cannot be undone.`)) {
+      if (confirm(`Retire ${selectedIds.length} idols?`)) {
         setIsProcessing(true);
         await onRetire(selectedIds);
         setIsProcessing(false);
@@ -45,13 +44,18 @@ const IdolManager: React.FC<IdolManagerProps> = ({ idols, onRetire, onTrain, tra
          setIsProcessing(true);
          const success = await onTrain(selectedIds[0]);
          setIsProcessing(false);
-         if (!success) {
-           // Alert handled in service
-         } else {
-             setSelectedIds([]); // Deselect after train
+         if (success) {
+             setSelectedIds([]);
          }
       }
     }
+  };
+
+  const getTypeIcon = (type: IdolType) => {
+      if (type === IdolType.CUTE) return <i className="fas fa-heart text-pink-400"></i>;
+      if (type === IdolType.COOL) return <i className="fas fa-gem text-blue-400"></i>;
+      if (type === IdolType.PASSION) return <i className="fas fa-sun text-yellow-400"></i>;
+      return null;
   };
 
   return (
@@ -76,7 +80,7 @@ const IdolManager: React.FC<IdolManagerProps> = ({ idols, onRetire, onTrain, tra
             onClick={() => { setMode('TRAIN'); setSelectedIds([]); }} 
             className={`flex-1 py-2 rounded text-sm font-bold transition-colors ${mode === 'TRAIN' ? 'bg-green-600' : 'bg-gray-700'}`}
         >
-            Train Lesson
+            Train
         </button>
         <button 
             onClick={() => { setMode('RETIRE'); setSelectedIds([]); }} 
@@ -86,20 +90,11 @@ const IdolManager: React.FC<IdolManagerProps> = ({ idols, onRetire, onTrain, tra
         </button>
       </div>
 
-      {mode === 'TRAIN' && (
-        <div className="bg-green-900/50 p-2 rounded mb-2 text-center text-sm border border-green-500">
-            Select an idol to train. Tickets: {trainerTickets}
-        </div>
-      )}
-      {mode === 'RETIRE' && selectedIds.length > 0 && (
-         <div className="bg-red-900/50 p-2 rounded mb-2 text-center text-sm border border-red-500 animate-pulse">
-            Selected: {selectedIds.length} idols.
-         </div>
-      )}
-
       <div className="grid grid-cols-4 gap-2 pb-20">
         {filteredIdols.map(idol => {
             const isSelected = selectedIds.includes(idol.id);
+            const affectionPct = (idol.affection / (idol.maxAffection || 20)) * 100;
+            
             return (
                 <div 
                     key={idol.id} 
@@ -109,8 +104,24 @@ const IdolManager: React.FC<IdolManagerProps> = ({ idols, onRetire, onTrain, tra
                     }`}
                 >
                     <img src={idol.image} className="w-full h-full object-cover" alt={idol.name} />
-                    <div className="absolute top-0 left-0 bg-black/60 px-1 text-[10px] font-bold text-yellow-300">Lv.{idol.level}</div>
-                    <div className={`absolute bottom-0 w-full text-center text-[10px] font-bold ${
+                    
+                    {/* Level Badge */}
+                    <div className="absolute top-0 left-0 bg-black/60 px-1 text-[9px] font-bold text-yellow-300">
+                        Lv.{idol.level}
+                    </div>
+                    
+                    {/* Type Badge */}
+                    <div className="absolute top-0 right-0 bg-black/60 px-1 text-[9px]">
+                        {getTypeIcon(idol.type)}
+                    </div>
+
+                    {/* Affection Bar */}
+                    <div className="absolute bottom-4 left-0 w-full h-1 bg-gray-800">
+                        <div className="h-full bg-pink-500" style={{width: `${Math.min(100, affectionPct)}%`}}></div>
+                    </div>
+
+                    {/* Rarity Label */}
+                    <div className={`absolute bottom-0 w-full text-center text-[9px] font-bold ${
                          idol.rarity === Rarity.SSR ? 'bg-gradient-to-r from-blue-500 to-pink-500' : 
                          idol.rarity === Rarity.SR ? 'bg-orange-500' : 'bg-gray-600'
                     }`}>

@@ -1,12 +1,13 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { UserState, Idol, EventData, Chapter, DialogLine, UserSprite, Present, Announcement, BattleOpponent, BattleResult } from '../types';
+import { UserState, Idol, EventData, Chapter, DialogLine, UserSprite, Present, Announcement, BattleOpponent, BattleResult, IdolType, WorkResult } from '../types';
 
 const API_URL = '/api';
 
 const INITIAL_USER: UserState = {
   id: 0,
   name: "Guest",
+  type: IdolType.CUTE,
   level: 1,
   exp: 0,
   maxExp: 100,
@@ -45,12 +46,12 @@ export const useGameEngine = () => {
     return false;
   };
 
-  const register = async (u: string, p: string) => {
+  const register = async (u: string, p: string, type: IdolType = IdolType.CUTE) => {
     try {
         const res = await fetch(`${API_URL}/auth/register`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({username: u, password: p})
+            body: JSON.stringify({username: u, password: p, type})
         });
         const data = await res.json();
         if (data.success) {
@@ -224,6 +225,25 @@ export const useGameEngine = () => {
       return null;
   };
 
+  const doNormalWork = async (): Promise<WorkResult | null> => {
+      if (!userId) return null;
+      try {
+          const res = await fetch(`${API_URL}/work/execute`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ userId })
+          });
+          const data = await res.json();
+          if (data.success) {
+              fetchData(); // Refresh UI
+              return data;
+          } else {
+              alert(data.error);
+              return null;
+          }
+      } catch(e) { console.error(e); return null; }
+  };
+
   const fetchChapters = async (type: string) => {
       if (type === 'FANMADE') {
           const res = await fetch(`${API_URL}/fan/chapters`);
@@ -376,7 +396,7 @@ export const useGameEngine = () => {
 
   return {
     userId, user, idols, event, loading, error, presents, announcements,
-    login, register, logout, useItem, pullGacha, retireIdols, trainIdol, buyItem, doEventWork,
+    login, register, logout, useItem, pullGacha, retireIdols, trainIdol, buyItem, doEventWork, doNormalWork,
     fetchChapters, fetchDialogs, markChapterRead, saveFanmadeStory, uploadSprite, fetchUserSprites, redeemPromoCode,
     claimPresent,
     fetchDeck, saveDeck, findOpponent, completeBattle

@@ -1,20 +1,21 @@
 
 import React, { useState } from 'react';
+import { IdolType } from '../types';
 
 interface AuthProps {
   onLogin: (u: string, p: string) => Promise<boolean>;
-  onRegister: (u: string, p: string) => Promise<boolean>;
+  onRegister: (u: string, p: string, type: IdolType) => Promise<boolean>;
 }
 
-// Updated background image to the Cinderella Girls Horizontal Banner
 const COVER_IMAGE = "https://mediaproxy.tvtropes.org/width/1200/https://static.tvtropes.org/pmwiki/pub/images/imcg_horiz_banner.png"; 
 
 const Auth: React.FC<AuthProps> = ({ onLogin, onRegister }) => {
   const [isRegister, setIsRegister] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [selectedType, setSelectedType] = useState<IdolType>(IdolType.CUTE);
   const [error, setError] = useState('');
-  const [touched, setTouched] = useState(false); // State untuk efek "Touch to Start"
+  const [touched, setTouched] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
@@ -25,7 +26,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onRegister }) => {
       }
       
       const success = isRegister 
-        ? await onRegister(username, password)
+        ? await onRegister(username, password, selectedType)
         : await onLogin(username, password);
         
       if (!success) setError(isRegister ? "Username taken or error" : "Invalid credentials");
@@ -33,19 +34,15 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onRegister }) => {
 
   return (
     <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center overflow-hidden bg-black font-sans z-50">
-      {/* Background Image Layer */}
       <div 
         className="absolute inset-0 bg-cover bg-[center_top] bg-no-repeat transition-transform duration-[20s] ease-linear hover:scale-110"
         style={{ backgroundImage: `url('${COVER_IMAGE}')` }}
       />
       
-      {/* Gradient Overlay for Readability */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/30" />
 
-      {/* Main Content */}
       <div className="relative z-10 w-full px-6 flex flex-col items-center justify-between h-full py-12">
         
-        {/* Game Title Section */}
         <div className="mt-16 text-center animate-[fadeInDown_1s_ease-out]">
            <div className="inline-block relative group">
                <i className="fas fa-crown text-4xl text-yellow-400 absolute -top-8 -right-8 rotate-12 drop-shadow-[0_0_10px_rgba(250,204,21,0.8)] animate-bounce"></i>
@@ -64,7 +61,6 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onRegister }) => {
            </div>
         </div>
 
-        {/* Interaction Area */}
         <div className="w-full flex flex-col gap-4 animate-[fadeInUp_1s_ease-out_0.5s_both]">
             
             {!touched ? (
@@ -86,6 +82,23 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onRegister }) => {
                             </h3>
                             <div className="h-0.5 w-16 bg-gradient-to-r from-transparent via-pink-500 to-transparent mx-auto mt-2"></div>
                         </div>
+
+                        {isRegister && (
+                            <div className="grid grid-cols-3 gap-2 mb-4">
+                                <button type="button" onClick={() => setSelectedType(IdolType.CUTE)} className={`p-2 rounded border-2 flex flex-col items-center ${selectedType === IdolType.CUTE ? 'bg-pink-600 border-pink-300' : 'bg-gray-800 border-gray-600 opacity-50'}`}>
+                                    <i className="fas fa-heart text-pink-300 text-xl mb-1"></i>
+                                    <span className="text-[9px] font-bold text-white">CUTE</span>
+                                </button>
+                                <button type="button" onClick={() => setSelectedType(IdolType.COOL)} className={`p-2 rounded border-2 flex flex-col items-center ${selectedType === IdolType.COOL ? 'bg-blue-600 border-blue-300' : 'bg-gray-800 border-gray-600 opacity-50'}`}>
+                                    <i className="fas fa-gem text-blue-300 text-xl mb-1"></i>
+                                    <span className="text-[9px] font-bold text-white">COOL</span>
+                                </button>
+                                <button type="button" onClick={() => setSelectedType(IdolType.PASSION)} className={`p-2 rounded border-2 flex flex-col items-center ${selectedType === IdolType.PASSION ? 'bg-orange-600 border-orange-300' : 'bg-gray-800 border-gray-600 opacity-50'}`}>
+                                    <i className="fas fa-sun text-yellow-300 text-xl mb-1"></i>
+                                    <span className="text-[9px] font-bold text-white">PASSION</span>
+                                </button>
+                            </div>
+                        )}
 
                         <div className="space-y-4">
                             <div className="relative">
@@ -142,14 +155,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin, onRegister }) => {
                 </div>
             )}
         </div>
-
-        {/* Footer */}
         <div className="text-[9px] text-gray-500/80 mb-2 flex flex-col items-center">
-            <div className="flex gap-2 mb-1">
-                 <i className="fab fa-apple"></i>
-                 <i className="fab fa-android"></i>
-                 <i className="fab fa-chrome"></i>
-            </div>
             <span>© BANDAI NAMCO Entertainment Inc. (Fanmade Web Ver.)</span>
         </div>
       </div>
