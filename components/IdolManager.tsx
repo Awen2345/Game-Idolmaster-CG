@@ -96,32 +96,47 @@ const IdolManager: React.FC<IdolManagerProps> = ({
   // --- SUB-RENDERERS ---
 
   const renderGridMenu = () => (
-      <div className="h-full flex bg-gray-100 overflow-hidden">
+      <div className="h-full flex bg-gray-100 overflow-hidden relative">
           {/* Left: Chihiro / Secretary */}
-          <div className="w-1/3 relative bg-gradient-to-b from-blue-100 to-blue-200 border-r border-blue-300">
-             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-30"></div>
-             <img 
-                src="https://imas.gamedbs.jp/cg/images_o/ui/navi/1452751597-103.png" // Specific Chihiro URL
-                className="absolute bottom-0 left-1/2 transform -translate-x-1/2 h-[90%] object-contain drop-shadow-xl"
-                alt="Secretary"
-             />
-             <div className="absolute bottom-4 left-2 right-2 bg-black/70 text-white text-[10px] p-2 rounded-lg border border-white/50 animate-bounce">
-                Producer-san! What shall we do today?
+          <div className="w-5/12 relative bg-gradient-to-b from-blue-50 to-blue-100 border-r border-blue-200 overflow-visible z-10">
+             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-20"></div>
+             
+             {/* Chihiro Image - Scaled and positioned to hide bottom cut-off */}
+             <div className="absolute bottom-0 left-0 w-full h-[95%] flex items-end justify-center overflow-hidden">
+                 <img 
+                    src="https://imas.gamedbs.jp/cg/images_o/ui/navi/1452751597-103.png" 
+                    className="h-full object-contain object-bottom transform scale-110 translate-y-4"
+                    alt="Secretary"
+                 />
+             </div>
+
+             {/* Speech Bubble Dialog - Positioned near waist/skirt */}
+             <div className="absolute bottom-24 left-2 right-[-20px] bg-white text-gray-800 text-[10px] p-3 rounded-xl shadow-lg border-2 border-gray-300 z-20 animate-fade-in">
+                <p className="font-bold leading-tight">Producer-san! Let's organize the unit and train the idols!</p>
+                {/* Bubble Tail */}
+                <div className="absolute bottom-4 -left-2 w-4 h-4 bg-white border-b-2 border-l-2 border-gray-300 transform rotate-45"></div>
              </div>
           </div>
 
           {/* Right: Menu Grid */}
-          <div className="w-2/3 p-2 overflow-y-auto bg-[url('https://www.transparenttextures.com/patterns/diagmonds-light.png')]">
+          <div className="w-7/12 p-2 overflow-y-auto bg-[url('https://www.transparenttextures.com/patterns/diagmonds-light.png')] custom-scrollbar pb-20">
               <div className="grid grid-cols-1 gap-2">
-                  <MenuButton icon="users" color="bg-blue-100 text-blue-800" label="Idol Formation" sub="Edit Units" onClick={() => setMode('FORMATION')} />
-                  <MenuButton icon="microphone-alt" color="bg-yellow-100 text-yellow-800" label="Lesson" sub="Level Up" onClick={() => setMode('LESSON')} />
-                  <MenuButton icon="magic" color="bg-pink-100 text-pink-800" label="Special Training" sub="Awaken" onClick={() => setMode('SPECIAL_TRAINING')} />
-                  <MenuButton icon="star" color="bg-purple-100 text-purple-800" label="Star Lesson" sub="Rank Up" onClick={() => setMode('STAR_LESSON')} />
-                  <MenuButton icon="gift" color="bg-gray-200 text-gray-400" label="Gift Items" sub="Locked" disabled />
-                  <MenuButton icon="door-open" color="bg-gray-200 text-gray-400" label="Dormitory" sub="Locked" disabled />
-                  <MenuButton icon="list-alt" color="bg-green-100 text-green-800" label="Idol List" sub="View All" onClick={() => setMode('LIST')} />
-                  <MenuButton icon="tshirt" color="bg-gray-200 text-gray-400" label="Dress Coord" sub="Locked" disabled />
-                  <MenuButton icon="exchange-alt" color="bg-red-100 text-red-800" label="Transfer" sub="Send Home" onClick={() => setMode('TRANSFER')} />
+                  <MenuButton icon="users" color="bg-white text-blue-600 border-blue-200" label="Idol Formation" sub="Edit Units" onClick={() => setMode('FORMATION')} />
+                  <MenuButton icon="microphone-alt" color="bg-white text-yellow-600 border-yellow-200" label="Lesson" sub="Level Up" onClick={() => setMode('LESSON')} />
+                  <MenuButton icon="magic" color="bg-white text-pink-600 border-pink-200" label="Special Training" sub="Awaken" onClick={() => setMode('SPECIAL_TRAINING')} />
+                  <MenuButton icon="star" color="bg-white text-purple-600 border-purple-200" label="Star Lesson" sub="Rank Up" onClick={() => setMode('STAR_LESSON')} />
+                  
+                  <MenuButton icon="bolt" color="bg-gray-100 text-gray-500" label="Potential Release" sub="Locked" disabled />
+                  <MenuButton icon="gift" color="bg-gray-100 text-gray-500" label="Gift Items" sub="Locked" disabled />
+                  
+                  <MenuButton icon="list-alt" color="bg-white text-green-600 border-green-200" label="Idol List" sub="View All" onClick={() => setMode('LIST')} />
+                  
+                  <MenuButton icon="tshirt" color="bg-gray-100 text-gray-500" label="Dress Coord" sub="Locked" disabled />
+                  <MenuButton icon="building" color="bg-gray-100 text-gray-500" label="Girls Dormitory" sub="Locked" disabled />
+                  <MenuButton icon="book" color="bg-gray-100 text-gray-500" label="Produce Note" sub="Locked" disabled />
+                  <MenuButton icon="film" color="bg-gray-100 text-gray-500" label="Premium Cut" sub="Locked" disabled />
+
+                  <MenuButton icon="exchange-alt" color="bg-white text-red-600 border-red-200" label="Transfer" sub="Send Home" onClick={() => setMode('TRANSFER')} />
               </div>
           </div>
       </div>
@@ -300,16 +315,16 @@ const MenuButton = ({ icon, color, label, sub, onClick, disabled }: any) => (
     <button 
         onClick={onClick}
         disabled={disabled}
-        className={`w-full flex items-center p-3 rounded-lg shadow-sm border border-gray-200 transition-transform active:scale-95 ${disabled ? 'opacity-50 cursor-not-allowed bg-gray-100' : 'bg-white hover:bg-gray-50'}`}
+        className={`w-full flex items-center p-3 rounded-lg shadow-sm border border-b-4 transition-transform active:scale-95 active:border-b-0 active:translate-y-1 ${disabled ? 'opacity-60 cursor-not-allowed bg-gray-100 border-gray-300 text-gray-400' : `hover:brightness-105 ${color}`}`}
     >
-        <div className={`w-12 h-12 rounded-full flex items-center justify-center text-xl mr-3 ${color} shrink-0`}>
+        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg mr-3 bg-black/5 shrink-0`}>
             <i className={`fas fa-${icon}`}></i>
         </div>
-        <div className="text-left">
-            <div className="font-bold text-gray-800 text-sm">{label}</div>
-            <div className="text-[10px] text-gray-500 uppercase tracking-wider">{sub}</div>
+        <div className="text-left flex-1">
+            <div className="font-bold text-sm leading-tight">{label}</div>
+            <div className="text-[9px] uppercase tracking-wider opacity-70">{sub}</div>
         </div>
-        {!disabled && <i className="fas fa-chevron-right ml-auto text-gray-300"></i>}
+        {!disabled && <i className="fas fa-chevron-right ml-auto text-black/20"></i>}
     </button>
 );
 
