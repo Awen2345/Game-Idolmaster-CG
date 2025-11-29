@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { BattleOpponent, BattleResult, Idol, Rarity } from '../types';
 import DeckBuilder from './DeckBuilder';
@@ -246,30 +245,25 @@ const LiveBattle: React.FC<LiveBattleProps> = ({ userId, userDeckIds, allIdols, 
         <div className="relative z-10 flex-1 flex flex-col items-center justify-center gap-6 p-6">
             <button 
                 onClick={() => handleStartBattle('PVP')}
-                className="w-full max-w-xs bg-gradient-to-r from-red-600 to-orange-600 py-6 rounded-xl font-black text-2xl text-white shadow-[0_0_20px_rgba(220,38,38,0.5)] hover:scale-105 transition-transform border-2 border-red-400 relative overflow-hidden group"
+                className="w-full max-w-xs bg-gradient-to-r from-red-600 to-orange-600 py-6 rounded-xl font-black text-white text-xl shadow-[0_0_20px_rgba(220,38,38,0.6)] hover:scale-105 transition-transform flex flex-col items-center border border-red-400"
             >
-                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-30"></div>
-                <span className="relative z-10">BATTLE PLAYER</span>
-                <span className="absolute bottom-2 right-2 text-[10px] bg-black/40 px-2 rounded font-normal">Ranked</span>
+                <span>BATTLE START</span>
+                <span className="text-xs font-normal opacity-80 mt-1">Cost: 20 Stamina</span>
             </button>
-
+            
             <button 
                 onClick={() => handleStartBattle('BOT')}
-                className="w-full max-w-xs bg-gray-700 py-4 rounded-xl font-bold text-lg text-gray-300 hover:bg-gray-600 hover:text-white transition-colors border-2 border-gray-500"
+                className="w-full max-w-xs bg-gray-800/80 py-4 rounded-xl font-bold text-gray-300 border border-gray-600 hover:bg-gray-700 transition-colors"
             >
-                Practice vs Bot
+                Practice (Bot)
             </button>
 
             <button 
                 onClick={() => setPhase('DECK')}
-                className="w-full max-w-xs bg-blue-600 py-3 rounded-xl font-bold text-white shadow-lg hover:bg-blue-500 transition-colors flex items-center justify-center gap-2"
+                className="w-full max-w-xs bg-blue-600/80 py-4 rounded-xl font-bold text-white border border-blue-400 hover:bg-blue-500 transition-colors flex justify-center items-center gap-2"
             >
-                <i className="fas fa-layer-group"></i> Edit Unit Deck
+                <i className="fas fa-users"></i> Edit Unit
             </button>
-        </div>
-
-        <div className="relative z-10 p-4 bg-black/60 text-center text-xs text-gray-400 backdrop-blur-sm">
-            Win battles to earn EXP and Star Jewels!
         </div>
     </div>
   );
