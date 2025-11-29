@@ -27,6 +27,7 @@ const Gacha: React.FC<GachaProps> = ({ jewels, onPull }) => {
   
   // Details Tab
   const [detailsTab, setDetailsTab] = useState<'RATES' | 'POOL'>('RATES');
+  const [poolFilter, setPoolFilter] = useState<'ALL' | 'SSR' | 'SR' | 'R' | 'N'>('ALL');
   
   // Card Preview Overlay
   const [activePreviewCard, setActivePreviewCard] = useState<any>(null);
@@ -183,6 +184,11 @@ const Gacha: React.FC<GachaProps> = ({ jewels, onPull }) => {
   const renderDetailsModal = () => {
       if(!poolInfo) return null;
       
+      const filteredPool = poolInfo.pool.filter(c => poolFilter === 'ALL' || c.rarity === poolFilter);
+      // Sort by rarity: SSR > SR > R > N
+      const rarityOrder = { 'SSR': 3, 'SR': 2, 'R': 1, 'N': 0 };
+      const sortedPool = [...filteredPool].sort((a, b) => (rarityOrder[b.rarity as keyof typeof rarityOrder] || 0) - (rarityOrder[a.rarity as keyof typeof rarityOrder] || 0));
+
       return (
         <div className="absolute inset-0 z-[100] bg-black/90 flex flex-col items-center justify-center p-4">
             <div className="bg-white w-full max-w-lg rounded-lg overflow-hidden flex flex-col h-[80vh] text-black shadow-2xl">
@@ -234,11 +240,25 @@ const Gacha: React.FC<GachaProps> = ({ jewels, onPull }) => {
                         </div>
                     ) : (
                         <div className="space-y-4">
-                            <h4 className="font-bold border-l-4 border-blue-500 pl-2">Available Idols ({poolInfo.pool.length})</h4>
+                            <h4 className="font-bold border-l-4 border-blue-500 pl-2">Available Idols ({sortedPool.length})</h4>
+                            
+                            {/* Filter Buttons */}
+                            <div className="flex gap-2 text-xs overflow-x-auto pb-2">
+                                {['ALL', 'SSR', 'SR', 'R', 'N'].map(f => (
+                                    <button 
+                                        key={f}
+                                        onClick={() => setPoolFilter(f as any)}
+                                        className={`px-3 py-1 rounded-full font-bold border ${poolFilter === f ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300'}`}
+                                    >
+                                        {f}
+                                    </button>
+                                ))}
+                            </div>
+
                             <p className="text-xs text-gray-500 mb-2">Tap a card to view full profile and stats.</p>
                             
                             <div className="grid grid-cols-4 gap-2">
-                                {poolInfo.pool.map(card => (
+                                {sortedPool.map(card => (
                                     <div 
                                         key={card.id} 
                                         onClick={() => setActivePreviewCard(card)}

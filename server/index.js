@@ -22,21 +22,25 @@ const CONFIG_PATH = path.join(__dirname, 'game_config.json');
 
 // --- IDOL DATA SYNC ---
 const syncIdolData = async () => {
-    // 1. Check if we need to force update (Fixing the "All Cute" bug)
+    // 1. Check if we need to force update (Fixing the "All Cute" bug OR Expanding pool size)
     db.get("SELECT count(*) as count FROM idol_templates WHERE type IN ('COOL', 'PASSION')", (err, row) => {
         const hasVariety = row && row.count > 0;
         
         db.get("SELECT count(*) as total FROM idol_templates", async (err, row) => {
             const total = row ? row.total : 0;
 
-            // If we have data BUT no variety (All Cute bug), OR no data at all -> Sync
-            if (total > 0 && hasVariety) {
-                console.log("Idol database is healthy.");
+            // Trigger update if:
+            // 1. Data exists but no variety (All Cute bug)
+            // 2. Data exists but fewer than 500 cards (Upgrade from 300 to 1000)
+            const needsUpdate = (total > 0 && !hasVariety) || (total > 0 && total < 500);
+
+            if (total > 0 && !needsUpdate) {
+                console.log(`Idol database is healthy (${total} cards).`);
                 return;
             }
 
-            if (total > 0 && !hasVariety) {
-                console.log("Detected 'All Cute' bug. Purging database to resync...");
+            if (needsUpdate) {
+                console.log(`Database needs update (Count: ${total}, Variety: ${hasVariety}). Purging to resync 1000+ cards...`);
                 await new Promise(resolve => db.run("DELETE FROM idol_templates", resolve));
             }
 
@@ -51,8 +55,8 @@ const syncIdolData = async () => {
     
                  if (!cards) return;
     
-                 // Filter for R (3), SR (5), SSR (7) only.
-                 cards = cards.filter(c => [3, 5, 7].includes(c.rarity_dep.rarity));
+                 // Filter for N (1), R (3), SR (5), SSR (7)
+                 cards = cards.filter(c => [1, 3, 5, 7].includes(c.rarity_dep.rarity));
     
                  // SHUFFLE the cards
                  for (let i = cards.length - 1; i > 0; i--) {
@@ -60,8 +64,8 @@ const syncIdolData = async () => {
                     [cards[i], cards[j]] = [cards[j], cards[i]];
                  }
     
-                 // Take 300
-                 const selectedCards = cards.slice(0, 300);
+                 // Take 1000 (Expanded Pool)
+                 const selectedCards = cards.slice(0, 1000);
     
                  const stmt = db.prepare("INSERT OR IGNORE INTO idol_templates (id, name, rarity, type, maxLevel, image, vocal, dance, visual, attack, defense) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
                  
@@ -71,6 +75,7 @@ const syncIdolData = async () => {
     
                      let rarity = 'N';
                      let maxLevel = 20;
+                     if (rId === 1) { rarity = 'N'; maxLevel = 20; }
                      if (rId === 3) { rarity = 'R'; maxLevel = 40; }
                      if (rId === 5) { rarity = 'SR'; maxLevel = 70; }
                      if (rId === 7) { rarity = 'SSR'; maxLevel = 90; }
@@ -106,7 +111,7 @@ const syncIdolData = async () => {
                      count++;
                  }
                  stmt.finalize();
-                 console.log(`Successfully populated ${count} mixed idols (Cute/Cool/Passion) from API.`);
+                 console.log(`Successfully populated ${count} mixed idols (N/R/SR/SSR - Cute/Cool/Passion) from API.`);
             } catch (e) {
                 console.error("Failed to sync idols:", e);
             }
