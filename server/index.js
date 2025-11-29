@@ -461,9 +461,9 @@ app.get('/api/gacha/details', (req, res) => {
     const rates = config.gacha?.rates || { SSR: 3, SR: 12, R: 85 };
     
     db.all("SELECT id, name, rarity, type, image, vocal, dance, visual FROM idol_templates", (err, rows) => {
+        // Return valid structure even if rows empty
         if (!rows) return res.json({ rates, pool: [] });
-        
-        // Return full pool information
+        if (err) return res.json({ rates, pool: [] });
         res.json({ rates, pool: rows });
     });
 });

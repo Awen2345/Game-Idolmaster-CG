@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Idol, Rarity, GachaHistoryEntry, GachaPoolInfo } from '../types';
 import { GACHA_COST, GACHA_10_COST } from '../constants';
 import { useGameEngine } from '../services/gameService';
+import CardDetail from './CardDetail';
 
 interface GachaProps {
   jewels: number;
@@ -22,6 +23,7 @@ const Gacha: React.FC<GachaProps> = ({ jewels, onPull }) => {
   // Data for Modals
   const [historyData, setHistoryData] = useState<GachaHistoryEntry[]>([]);
   const [poolInfo, setPoolInfo] = useState<GachaPoolInfo | null>(null);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   
   // Details Tab
   const [detailsTab, setDetailsTab] = useState<'RATES' | 'POOL'>('RATES');
@@ -38,9 +40,19 @@ const Gacha: React.FC<GachaProps> = ({ jewels, onPull }) => {
   };
 
   const loadDetails = async () => {
-      const data = await fetchGachaDetails();
-      setPoolInfo(data);
-      setShowDetails(true);
+      setIsLoadingDetails(true);
+      try {
+        const data = await fetchGachaDetails();
+        if (data) {
+            setPoolInfo(data);
+            setShowDetails(true);
+        }
+      } catch (e) {
+          console.error("Failed to load details", e);
+          alert("Failed to load Gacha Details. Please try again.");
+      } finally {
+          setIsLoadingDetails(false);
+      }
   };
 
   const handlePull = async (count: 1 | 10) => {
@@ -223,16 +235,16 @@ const Gacha: React.FC<GachaProps> = ({ jewels, onPull }) => {
                     ) : (
                         <div className="space-y-4">
                             <h4 className="font-bold border-l-4 border-blue-500 pl-2">Available Idols ({poolInfo.pool.length})</h4>
-                            <p className="text-xs text-gray-500 mb-2">Tap a card to view stats.</p>
+                            <p className="text-xs text-gray-500 mb-2">Tap a card to view full profile and stats.</p>
                             
                             <div className="grid grid-cols-4 gap-2">
                                 {poolInfo.pool.map(card => (
                                     <div 
                                         key={card.id} 
                                         onClick={() => setActivePreviewCard(card)}
-                                        className="relative aspect-[3/4] bg-gray-200 rounded cursor-pointer overflow-hidden border border-gray-300 hover:border-pink-500 transition-colors"
+                                        className="relative aspect-[3/4] bg-gray-200 rounded cursor-pointer overflow-hidden border border-gray-300 hover:border-pink-500 transition-colors group"
                                     >
-                                        <img src={card.image} className="w-full h-full object-cover" loading="lazy" />
+                                        <img src={card.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" />
                                         <div className={`absolute top-0 left-0 px-1 text-[8px] text-white font-bold ${
                                             card.rarity === 'SSR' ? 'bg-pink-500' : card.rarity === 'SR' ? 'bg-orange-500' : 'bg-gray-500'
                                         }`}>
@@ -248,145 +260,6 @@ const Gacha: React.FC<GachaProps> = ({ jewels, onPull }) => {
         </div>
       );
   };
-
-  const renderCardStatsModal = () => {
-      if (!activePreviewCard) return null;
-      const card = activePreviewCard;
-      const totalStats = card.vocal + card.dance + card.visual;
-
-      return (
-          <div className="absolute inset-0 z-[200] bg-black/80 flex items-center justify-center p-6 animate-fade-in" onClick={() => setActivePreviewCard(null)}>
-              <div className="bg-white rounded-xl overflow-hidden max-w-2xl w-full flex flex-col md:flex-row shadow-2xl" onClick={e => e.stopPropagation()}>
-                  
-                  {/* Image Side */}
-                  <div className="w-full md:w-1/2 h-64 md:h-auto bg-gray-100 relative">
-                      <img src={card.image} className="w-full h-full object-contain" />
-                      <div className={`absolute top-4 left-4 px-3 py-1 text-white font-black text-lg rounded shadow-lg ${
-                          card.rarity === 'SSR' ? 'bg-gradient-to-r from-pink-500 to-red-500' : 'bg-gray-600'
-                      }`}>
-                          {card.rarity}
-                      </div>
-                  </div>
-
-                  {/* Stats Side */}
-                  <div className="w-full md:w-1/2 p-6 flex flex-col">
-                      <h2 className="text-2xl font-black text-gray-800 mb-1">{card.name}</h2>
-                      <div className="flex gap-2 mb-4">
-                          <span className={`px-2 py-0.5 rounded text-xs font-bold text-white ${
-                              card.type === 'CUTE' ? 'bg-pink-400' : card.type === 'COOL' ? 'bg-blue-400' : 'bg-yellow-400'
-                          }`}>
-                              {card.type}
-                          </span>
-                      </div>
-
-                      <div className="space-y-3 flex-1">
-                          <div className="flex justify-between items-center border-b pb-1">
-                              <span className="text-gray-500 text-sm">Max Level</span>
-                              <span className="font-bold">{card.maxLevel || (card.rarity==='SSR'?90:70)}</span>
-                          </div>
-                          
-                          <div className="space-y-1">
-                              <div className="flex justify-between text-xs font-bold">
-                                  <span className="text-pink-500">Vocal</span>
-                                  <span>{card.vocal}</span>
-                              </div>
-                              <div className="w-full bg-gray-200 h-1.5 rounded-full overflow-hidden">
-                                  <div className="bg-pink-500 h-full" style={{width: `${(card.vocal/100)*100}%`}}></div>
-                              </div>
-                          </div>
-
-                          <div className="space-y-1">
-                              <div className="flex justify-between text-xs font-bold">
-                                  <span className="text-blue-500">Dance</span>
-                                  <span>{card.dance}</span>
-                              </div>
-                              <div className="w-full bg-gray-200 h-1.5 rounded-full overflow-hidden">
-                                  <div className="bg-blue-500 h-full" style={{width: `${(card.dance/100)*100}%`}}></div>
-                              </div>
-                          </div>
-
-                          <div className="space-y-1">
-                              <div className="flex justify-between text-xs font-bold">
-                                  <span className="text-yellow-500">Visual</span>
-                                  <span>{card.visual}</span>
-                              </div>
-                              <div className="w-full bg-gray-200 h-1.5 rounded-full overflow-hidden">
-                                  <div className="bg-yellow-500 h-full" style={{width: `${(card.visual/100)*100}%`}}></div>
-                              </div>
-                          </div>
-
-                          <div className="bg-gray-100 p-3 rounded mt-4 text-center">
-                              <div className="text-xs text-gray-500 uppercase font-bold">Total Power</div>
-                              <div className="text-2xl font-black text-gray-800">{totalStats}</div>
-                          </div>
-                      </div>
-
-                      <button onClick={() => setActivePreviewCard(null)} className="mt-6 w-full bg-gray-800 text-white py-3 rounded font-bold hover:bg-gray-700">
-                          Close
-                      </button>
-                  </div>
-              </div>
-          </div>
-      );
-  };
-
-  // --- LOADING / ANIMATION SCREENS (Same as before) ---
-  if (stage === 'LOADING') {
-      return (
-        <div className="absolute inset-0 z-50 bg-black flex flex-col items-center justify-center">
-            <style>{styles}</style>
-            <div className="w-16 h-16 border-4 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-pink-300 mt-4 font-bold tracking-widest animate-pulse">CONNECTING...</p>
-        </div>
-      );
-  }
-
-  if (['ENVELOPE_APPEAR', 'ENVELOPE_WAIT', 'OPENING'].includes(stage)) {
-    return (
-      <div className="absolute inset-0 z-50 bg-gray-900 overflow-hidden flex flex-col items-center justify-center perspective-1000">
-        <style>{styles}</style>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900 via-black to-black opacity-80"></div>
-        {highestRarity === Rarity.SSR && (
-            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-30 animate-pulse"></div>
-        )}
-        {stage === 'ENVELOPE_WAIT' && (
-            <div className="absolute bottom-20 text-white font-light tracking-[0.5em] text-sm animate-pulse z-20">TOUCH TO OPEN</div>
-        )}
-        {stage === 'OPENING' && <div className="absolute inset-0 bg-white z-50 animate-burst pointer-events-none"></div>}
-        {renderEnvelope()}
-      </div>
-    );
-  }
-
-  if (stage === 'REVEAL' && results) {
-    return (
-      <div className="absolute inset-0 z-50 bg-gray-900 flex flex-col items-center p-4 overflow-y-auto">
-        <style>{styles}</style>
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-             {results.some(i => i.rarity === Rarity.SSR) && (
-                 <div className="w-full h-full bg-[url('https://www.transparenttextures.com/patterns/diagmonds-light.png')] opacity-10"></div>
-             )}
-        </div>
-        <h2 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-pink-500 mb-6 mt-4 z-10 drop-shadow-sm">RESULTS</h2>
-        <div className="grid grid-cols-2 gap-4 w-full mb-20 z-10">
-          {results.map((idol, idx) => (
-            <div key={idx} className={`relative bg-gray-800 rounded-lg overflow-hidden shadow-2xl transform opacity-0 animate-card-flip border-2`} style={{ animationDelay: `${idx * 200}ms`, borderColor: idol.rarity === Rarity.SSR ? '#f472b6' : idol.rarity === Rarity.SR ? '#fbbf24' : '#6b7280' }}>
-               {idol.rarity === Rarity.SSR && <div className="absolute inset-0 z-0 bg-gradient-to-tr from-pink-500/20 to-yellow-500/20 animate-pulse"></div>}
-              <div className="relative z-10">
-                  <img src={idol.image} alt={idol.name} className="w-full h-40 object-cover" />
-                  <div className={`absolute top-0 left-0 px-2 py-0.5 rounded-br-lg text-[10px] font-black tracking-tighter z-20 shadow-md ${idol.rarity === Rarity.SSR ? 'bg-gradient-to-r from-pink-500 via-red-500 to-yellow-500 text-white border border-white/50' : idol.rarity === Rarity.SR ? 'bg-orange-500 text-white' : 'bg-gray-200 text-gray-800'}`}>{idol.rarity}</div>
-                  <div className="absolute bottom-0 w-full bg-black/80 p-1.5 backdrop-blur-sm">
-                    <div className={`text-sm font-bold truncate ${idol.rarity === Rarity.SSR ? 'text-yellow-300' : 'text-white'}`}>{idol.name}</div>
-                  </div>
-              </div>
-              <div className="absolute top-1 right-1 bg-red-600 text-white text-[10px] px-1 rounded font-bold animate-ping" style={{ animationDuration: '3s' }}>NEW</div>
-            </div>
-          ))}
-        </div>
-        <button onClick={reset} className="fixed bottom-20 bg-white text-pink-600 px-12 py-3 rounded-full font-black tracking-wide shadow-[0_0_20px_rgba(255,255,255,0.5)] hover:scale-105 transition-transform z-50">OK</button>
-      </div>
-    );
-  }
 
   // --- MAIN IDLE SCREEN ---
   return (
@@ -414,8 +287,16 @@ const Gacha: React.FC<GachaProps> = ({ jewels, onPull }) => {
       <div className="w-full mb-4 space-y-3">
         {/* Info Buttons */}
         <div className="flex gap-2">
-            <button onClick={loadDetails} className="flex-1 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold py-2 rounded border border-gray-500">
-                <i className="fas fa-info-circle mr-1"></i> Gacha Details
+            <button 
+                onClick={loadDetails} 
+                disabled={isLoadingDetails}
+                className="flex-1 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold py-2 rounded border border-gray-500 disabled:opacity-50 flex items-center justify-center"
+            >
+                {isLoadingDetails ? (
+                    <><i className="fas fa-spinner animate-spin mr-1"></i> Loading...</>
+                ) : (
+                    <><i className="fas fa-info-circle mr-1"></i> Gacha Details</>
+                )}
             </button>
             <button onClick={loadHistory} className="flex-1 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold py-2 rounded border border-gray-500">
                 <i className="fas fa-history mr-1"></i> History
@@ -437,7 +318,55 @@ const Gacha: React.FC<GachaProps> = ({ jewels, onPull }) => {
 
       {showHistory && renderHistoryModal()}
       {showDetails && renderDetailsModal()}
-      {activePreviewCard && renderCardStatsModal()}
+      
+      {/* Use the new CardDetail component */}
+      {activePreviewCard && <CardDetail card={activePreviewCard} onClose={() => setActivePreviewCard(null)} />}
+      
+      {/* Loading & Envelope Stages */}
+      {stage === 'LOADING' && (
+        <div className="absolute inset-0 z-50 bg-black flex flex-col items-center justify-center">
+            <style>{styles}</style>
+            <div className="w-16 h-16 border-4 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-pink-300 mt-4 font-bold tracking-widest animate-pulse">CONNECTING...</p>
+        </div>
+      )}
+
+      {['ENVELOPE_APPEAR', 'ENVELOPE_WAIT', 'OPENING'].includes(stage) && (
+        <div className="absolute inset-0 z-50 bg-gray-900 overflow-hidden flex flex-col items-center justify-center perspective-1000">
+            <style>{styles}</style>
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900 via-black to-black opacity-80"></div>
+            {highestRarity === Rarity.SSR && <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-30 animate-pulse"></div>}
+            {stage === 'ENVELOPE_WAIT' && <div className="absolute bottom-20 text-white font-light tracking-[0.5em] text-sm animate-pulse z-20">TOUCH TO OPEN</div>}
+            {stage === 'OPENING' && <div className="absolute inset-0 bg-white z-50 animate-burst pointer-events-none"></div>}
+            {renderEnvelope()}
+        </div>
+      )}
+
+      {stage === 'REVEAL' && results && (
+        <div className="absolute inset-0 z-50 bg-gray-900 flex flex-col items-center p-4 overflow-y-auto">
+            <style>{styles}</style>
+            <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                {results.some(i => i.rarity === Rarity.SSR) && <div className="w-full h-full bg-[url('https://www.transparenttextures.com/patterns/diagmonds-light.png')] opacity-10"></div>}
+            </div>
+            <h2 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-pink-500 mb-6 mt-4 z-10 drop-shadow-sm">RESULTS</h2>
+            <div className="grid grid-cols-2 gap-4 w-full mb-20 z-10">
+                {results.map((idol, idx) => (
+                    <div key={idx} className={`relative bg-gray-800 rounded-lg overflow-hidden shadow-2xl transform opacity-0 animate-card-flip border-2`} style={{ animationDelay: `${idx * 200}ms`, borderColor: idol.rarity === Rarity.SSR ? '#f472b6' : idol.rarity === Rarity.SR ? '#fbbf24' : '#6b7280' }}>
+                        {idol.rarity === Rarity.SSR && <div className="absolute inset-0 z-0 bg-gradient-to-tr from-pink-500/20 to-yellow-500/20 animate-pulse"></div>}
+                        <div className="relative z-10">
+                            <img src={idol.image} alt={idol.name} className="w-full h-40 object-cover" />
+                            <div className={`absolute top-0 left-0 px-2 py-0.5 rounded-br-lg text-[10px] font-black tracking-tighter z-20 shadow-md ${idol.rarity === Rarity.SSR ? 'bg-gradient-to-r from-pink-500 via-red-500 to-yellow-500 text-white border border-white/50' : idol.rarity === Rarity.SR ? 'bg-orange-500 text-white' : 'bg-gray-200 text-gray-800'}`}>{idol.rarity}</div>
+                            <div className="absolute bottom-0 w-full bg-black/80 p-1.5 backdrop-blur-sm">
+                                <div className={`text-sm font-bold truncate ${idol.rarity === Rarity.SSR ? 'text-yellow-300' : 'text-white'}`}>{idol.name}</div>
+                            </div>
+                        </div>
+                        <div className="absolute top-1 right-1 bg-red-600 text-white text-[10px] px-1 rounded font-bold animate-ping" style={{ animationDuration: '3s' }}>NEW</div>
+                    </div>
+                ))}
+            </div>
+            <button onClick={reset} className="fixed bottom-20 bg-white text-pink-600 px-12 py-3 rounded-full font-black tracking-wide shadow-[0_0_20px_rgba(255,255,255,0.5)] hover:scale-105 transition-transform z-50">OK</button>
+        </div>
+      )}
     </div>
   );
 };
