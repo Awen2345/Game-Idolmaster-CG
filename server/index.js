@@ -78,7 +78,9 @@ const syncIdolData = async () => {
                      const image = `https://hidamarirhodonite.kirara.ca/card/${card.id}.png`;
                      
                      // SAFE ATTRIBUTE MAPPING
-                     const rawAttr = (card.attribute || '').toLowerCase();
+                     // Convert to string explicitly to handle null/undefined/numbers safely
+                     const rawAttr = String(card.attribute || '').toLowerCase();
+                     
                      let type = 'CUTE'; // Default
                      if (rawAttr === 'cool') type = 'COOL';
                      if (rawAttr === 'passion') type = 'PASSION';
