@@ -145,10 +145,13 @@ export interface Present {
     receivedAt: number;
 }
 
+export type AnnouncementCategory = 'NEWS' | 'EVENT' | 'UPDATE' | 'BUG' | 'IMPORTANT';
+
 export interface Announcement {
     id: number;
     title: string;
     content: string;
+    category: AnnouncementCategory;
     date: number;
     bannerUrl?: string;
 }

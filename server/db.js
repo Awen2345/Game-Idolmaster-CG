@@ -123,7 +123,17 @@ db.serialize(() => {
 
   // 15-16. Presents & Announcements
   db.run(`CREATE TABLE IF NOT EXISTS presents (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, type TEXT, amount INTEGER, description TEXT, received_at INTEGER)`);
-  db.run(`CREATE TABLE IF NOT EXISTS announcements (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, content TEXT, date INTEGER, banner_url TEXT)`);
+  db.run(`CREATE TABLE IF NOT EXISTS announcements (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, 
+    title TEXT, 
+    content TEXT, 
+    date INTEGER, 
+    banner_url TEXT,
+    category TEXT
+  )`);
+  
+  // Migration for existing table
+  db.run("ALTER TABLE announcements ADD COLUMN category TEXT", () => {});
 
   // 17. User Read Chapters
   db.run(`CREATE TABLE IF NOT EXISTS user_read_chapters (user_id INTEGER, chapter_id TEXT, read_at INTEGER, PRIMARY KEY (user_id, chapter_id))`);
@@ -151,44 +161,38 @@ db.serialize(() => {
     base_exp INTEGER
   )`);
   
-  // Try to add duration_text if missing (migration)
   db.run("ALTER TABLE work_jobs ADD COLUMN duration_text TEXT", (err) => {});
 
   // 21. Gacha History
   db.run(`CREATE TABLE IF NOT EXISTS gacha_history (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, idol_id TEXT, idol_name TEXT, rarity TEXT, pulled_at INTEGER)`);
 
-  // --- SEED WORK DATA (NEW) ---
+  // --- SEED WORK DATA ---
   db.get("SELECT count(*) as count FROM work_regions", (err, row) => {
       if (row && row.count === 0) {
-          // Regions modeled after Starlight Stage
           db.run("INSERT INTO work_regions VALUES (1, 'Capital Area', 'Tokyo, Saitama, Chiba')");
           db.run("INSERT INTO work_regions VALUES (2, 'North East Area', 'Hokkaido, Tohoku')");
           db.run("INSERT INTO work_regions VALUES (3, 'West Area', 'Osaka, Kyoto, Hyogo')");
           db.run("INSERT INTO work_regions VALUES (4, 'South Area', 'Kyushu, Okinawa')");
 
-          // Jobs for Capital Area (Region 1)
           db.run("INSERT INTO work_jobs VALUES (1, 1, 'Variety Show Recording', 'ALL', 10, '10h 00m', 1, 500, 10)");
           db.run("INSERT INTO work_jobs VALUES (2, 1, 'Radio Guest Appearance', 'CUTE', 15, '6h 00m', 2, 800, 20)");
           db.run("INSERT INTO work_jobs VALUES (3, 1, 'Fashion Magazine Shoot', 'COOL', 20, '4h 00m', 3, 1200, 35)");
           db.run("INSERT INTO work_jobs VALUES (4, 1, 'National Commercial', 'PASSION', 25, '12h 00m', 4, 2000, 50)");
           
-          // Jobs for North East Area (Region 2)
           db.run("INSERT INTO work_jobs VALUES (5, 2, 'Local Commercial', 'PASSION', 12, '8h 00m', 1, 600, 15)");
           db.run("INSERT INTO work_jobs VALUES (6, 2, 'Snow Festival Live', 'COOL', 25, '10h 00m', 4, 1500, 50)");
           db.run("INSERT INTO work_jobs VALUES (7, 2, 'Hot Spring Report', 'ALL', 18, '6h 00m', 2, 900, 25)");
 
-          // Jobs for West Area (Region 3)
           db.run("INSERT INTO work_jobs VALUES (8, 3, 'Comedy Sketch', 'PASSION', 15, '5h 00m', 2, 900, 25)");
           db.run("INSERT INTO work_jobs VALUES (9, 3, 'Temple Visit Coverage', 'CUTE', 18, '7h 00m', 3, 1000, 30)");
           db.run("INSERT INTO work_jobs VALUES (10, 3, 'Theme Park Parade', 'ALL', 22, '3h 00m', 3, 1300, 40)");
           
-          // Jobs for South Area (Region 4)
           db.run("INSERT INTO work_jobs VALUES (11, 4, 'Beach PV Shoot', 'CUTE', 20, '8h 00m', 3, 1100, 35)");
           db.run("INSERT INTO work_jobs VALUES (12, 4, 'Resort Live', 'PASSION', 28, '10h 00m', 5, 2500, 60)");
       }
   });
 
-  // --- EXISTING SEEDS ---
+  // --- SEED EVENTS ---
   db.get("SELECT id FROM events WHERE id = 'evt_live_groove'", (err, row) => {
     if (!row) {
         const now = Date.now();
@@ -199,13 +203,58 @@ db.serialize(() => {
     }
   });
 
+  // --- SEED ANNOUNCEMENTS (UPDATED) ---
   const now = Date.now();
-  db.get("SELECT id FROM announcements", (err, row) => {
-      if(!row) {
-          db.run("INSERT INTO announcements (title, content, date, banner_url) VALUES (?, ?, ?, ?)", 
-            ["Business Update!", "New Jobs available in Central Area! Send your idols to work.", now + 100, "https://hidamarirhodonite.kirara.ca/spread/100523.png"]);
-      }
-  });
+  db.run("DELETE FROM announcements"); // Clear old mock data to refresh with new categories
+  
+  const insertNews = db.prepare("INSERT INTO announcements (title, content, category, date, banner_url) VALUES (?, ?, ?, ?, ?)");
+  
+  // IMPORTANT
+  insertNews.run(
+      "Maintenance Notice", 
+      "Server maintenance is scheduled for 02:00 - 06:00 JST. Please do not start Live Battles during this time.", 
+      "IMPORTANT", 
+      now + 86400000, 
+      "https://hidamarirhodonite.kirara.ca/spread/100523.png"
+  );
+
+  // UPDATE
+  insertNews.run(
+      "Major Update: Work & Business!", 
+      "New 'Work' feature added! Send your idols to various regions across Japan to earn Fans, Money, and EXP. Match your Deck's attributes (Cute/Cool/Passion) with the job type for Great Success chances!", 
+      "UPDATE", 
+      now, 
+      "https://hidamarirhodonite.kirara.ca/spread/100521.png"
+  );
+
+  // EVENT
+  insertNews.run(
+      "Live Groove: Visual Burst", 
+      "The new event 'Live Groove' has started! Play songs to earn event points. Ranking rewards include exclusive SR cards!", 
+      "EVENT", 
+      now - 100000, 
+      "https://hidamarirhodonite.kirara.ca/spread/100519.png"
+  );
+
+  // NEWS
+  insertNews.run(
+      "Universal Gacha Updated", 
+      "New idols added to the Universal Gacha pool! Over 4000 cards are now available. SSR appearance rate is 3%. Check the Gacha Details for more info.", 
+      "NEWS", 
+      now - 500000, 
+      "https://hidamarirhodonite.kirara.ca/spread/100517.png"
+  );
+
+  // BUG
+  insertNews.run(
+      "Fixed Issue: Battle Calculations", 
+      "We have fixed an issue where opponent defense was not calculated correctly in Live Battles. Compensation has been sent to all users.", 
+      "BUG", 
+      now - 1000000, 
+      null
+  );
+
+  insertNews.finalize();
 });
 
 module.exports = db;
