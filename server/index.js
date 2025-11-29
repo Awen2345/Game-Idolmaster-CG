@@ -22,79 +22,93 @@ const CONFIG_PATH = path.join(__dirname, 'game_config.json');
 
 // --- IDOL DATA SYNC ---
 const syncIdolData = async () => {
-    db.get("SELECT count(*) as count FROM idol_templates", async (err, row) => {
-        if (err || (row && row.count > 0)) {
-            console.log("Idol database already populated.");
-            return;
-        }
+    // 1. Check if we need to force update (Fixing the "All Cute" bug)
+    db.get("SELECT count(*) as count FROM idol_templates WHERE type IN ('COOL', 'PASSION')", (err, row) => {
+        const hasVariety = row && row.count > 0;
+        
+        db.get("SELECT count(*) as total FROM idol_templates", async (err, row) => {
+            const total = row ? row.total : 0;
 
-        console.log("Fetching Idol Data from Starlight Stage API...");
-        try {
-             // Fetch keys required for the game
-             const response = await fetch("https://starlight.kirara.ca/api/v1/list/card_t?keys=id,name,rarity_dep,attribute,vocal_max,dance_max,visual_max");
-             if (!response.ok) throw new Error("API Fetch failed");
-             
-             const json = await response.json();
-             let cards = json.result;
+            // If we have data BUT no variety (All Cute bug), OR no data at all -> Sync
+            if (total > 0 && hasVariety) {
+                console.log("Idol database is healthy.");
+                return;
+            }
 
-             if (!cards) return;
+            if (total > 0 && !hasVariety) {
+                console.log("Detected 'All Cute' bug. Purging database to resync...");
+                await new Promise(resolve => db.run("DELETE FROM idol_templates", resolve));
+            }
 
-             // Filter for R (3), SR (5), SSR (7) only. Exclude N (1) to make the pool higher quality.
-             cards = cards.filter(c => [3, 5, 7].includes(c.rarity_dep.rarity));
-
-             // SHUFFLE the cards to get a random pool of 300
-             for (let i = cards.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [cards[i], cards[j]] = [cards[j], cards[i]];
-             }
-
-             // Take the first 300 cards from the shuffled list
-             const selectedCards = cards.slice(0, 300);
-
-             const stmt = db.prepare("INSERT OR IGNORE INTO idol_templates (id, name, rarity, type, maxLevel, image, vocal, dance, visual, attack, defense) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-             
-             let count = 0;
-             for (const card of selectedCards) {
-                 const rId = card.rarity_dep.rarity;
-
-                 let rarity = 'N';
-                 let maxLevel = 20;
-                 if (rId === 3) { rarity = 'R'; maxLevel = 40; }
-                 if (rId === 5) { rarity = 'SR'; maxLevel = 70; }
-                 if (rId === 7) { rarity = 'SSR'; maxLevel = 90; }
-
-                 const image = `https://hidamarirhodonite.kirara.ca/card/${card.id}.png`;
+            console.log("Fetching Idol Data from Starlight Stage API...");
+            try {
+                 // Fetch keys required for the game
+                 const response = await fetch("https://starlight.kirara.ca/api/v1/list/card_t?keys=id,name,rarity_dep,attribute,vocal_max,dance_max,visual_max");
+                 if (!response.ok) throw new Error("API Fetch failed");
                  
-                 // Map Attribute
-                 let type = 'CUTE';
-                 if (card.attribute === 'cool') type = 'COOL';
-                 if (card.attribute === 'passion') type = 'PASSION';
-
-                 // Calculate Stats (Simplified formula)
-                 const totalStats = card.vocal_max + card.dance_max + card.visual_max;
-                 const attack = Math.floor(totalStats * 0.6); // Offensive bias
-                 const defense = Math.floor(totalStats * 0.4); // Defensive bias
-
-                 stmt.run(
-                     card.id.toString(), 
-                     card.name, 
-                     rarity,
-                     type, 
-                     maxLevel, 
-                     image, 
-                     card.vocal_max, 
-                     card.dance_max, 
-                     card.visual_max,
-                     attack,
-                     defense
-                 );
-                 count++;
-             }
-             stmt.finalize();
-             console.log(`Successfully populated ${count} random idols (R/SR/SSR) from Starlight Stage API.`);
-        } catch (e) {
-            console.error("Failed to sync idols:", e);
-        }
+                 const json = await response.json();
+                 let cards = json.result;
+    
+                 if (!cards) return;
+    
+                 // Filter for R (3), SR (5), SSR (7) only.
+                 cards = cards.filter(c => [3, 5, 7].includes(c.rarity_dep.rarity));
+    
+                 // SHUFFLE the cards
+                 for (let i = cards.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [cards[i], cards[j]] = [cards[j], cards[i]];
+                 }
+    
+                 // Take 300
+                 const selectedCards = cards.slice(0, 300);
+    
+                 const stmt = db.prepare("INSERT OR IGNORE INTO idol_templates (id, name, rarity, type, maxLevel, image, vocal, dance, visual, attack, defense) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                 
+                 let count = 0;
+                 for (const card of selectedCards) {
+                     const rId = card.rarity_dep.rarity;
+    
+                     let rarity = 'N';
+                     let maxLevel = 20;
+                     if (rId === 3) { rarity = 'R'; maxLevel = 40; }
+                     if (rId === 5) { rarity = 'SR'; maxLevel = 70; }
+                     if (rId === 7) { rarity = 'SSR'; maxLevel = 90; }
+    
+                     const image = `https://hidamarirhodonite.kirara.ca/card/${card.id}.png`;
+                     
+                     // SAFE ATTRIBUTE MAPPING
+                     const rawAttr = (card.attribute || '').toLowerCase();
+                     let type = 'CUTE'; // Default
+                     if (rawAttr === 'cool') type = 'COOL';
+                     if (rawAttr === 'passion') type = 'PASSION';
+    
+                     // Calculate Stats
+                     const totalStats = card.vocal_max + card.dance_max + card.visual_max;
+                     const attack = Math.floor(totalStats * 0.6);
+                     const defense = Math.floor(totalStats * 0.4);
+    
+                     stmt.run(
+                         card.id.toString(), 
+                         card.name, 
+                         rarity,
+                         type, 
+                         maxLevel, 
+                         image, 
+                         card.vocal_max, 
+                         card.dance_max, 
+                         card.visual_max,
+                         attack,
+                         defense
+                     );
+                     count++;
+                 }
+                 stmt.finalize();
+                 console.log(`Successfully populated ${count} mixed idols (Cute/Cool/Passion) from API.`);
+            } catch (e) {
+                console.error("Failed to sync idols:", e);
+            }
+        });
     });
 };
 
