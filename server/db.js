@@ -228,6 +228,16 @@ db.serialize(() => {
     progress_percent INTEGER DEFAULT 0
   )`);
 
+  // 21. Gacha History
+  db.run(`CREATE TABLE IF NOT EXISTS gacha_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    idol_id TEXT,
+    idol_name TEXT,
+    rarity TEXT,
+    pulled_at INTEGER
+  )`);
+
   // --- SEED WORK ZONES ---
   db.get("SELECT count(*) as count FROM work_zones", (err, row) => {
       if (row && row.count === 0) {

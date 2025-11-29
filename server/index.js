@@ -30,20 +30,32 @@ const syncIdolData = async () => {
 
         console.log("Fetching Idol Data from Starlight Stage API...");
         try {
+             // Fetch keys required for the game
              const response = await fetch("https://starlight.kirara.ca/api/v1/list/card_t?keys=id,name,rarity_dep,attribute,vocal_max,dance_max,visual_max");
              if (!response.ok) throw new Error("API Fetch failed");
              
              const json = await response.json();
-             const cards = json.result;
+             let cards = json.result;
 
              if (!cards) return;
+
+             // Filter for R (3), SR (5), SSR (7) only. Exclude N (1) to make the pool higher quality.
+             cards = cards.filter(c => [3, 5, 7].includes(c.rarity_dep.rarity));
+
+             // SHUFFLE the cards to get a random pool of 300
+             for (let i = cards.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [cards[i], cards[j]] = [cards[j], cards[i]];
+             }
+
+             // Take the first 300 cards from the shuffled list
+             const selectedCards = cards.slice(0, 300);
 
              const stmt = db.prepare("INSERT OR IGNORE INTO idol_templates (id, name, rarity, type, maxLevel, image, vocal, dance, visual, attack, defense) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
              
              let count = 0;
-             for (const card of cards) {
+             for (const card of selectedCards) {
                  const rId = card.rarity_dep.rarity;
-                 if (![1, 3, 5, 7].includes(rId)) continue;
 
                  let rarity = 'N';
                  let maxLevel = 20;
@@ -77,10 +89,9 @@ const syncIdolData = async () => {
                      defense
                  );
                  count++;
-                 if (count >= 300) break; 
              }
              stmt.finalize();
-             console.log(`Successfully populated ${count} idols from Starlight Stage API.`);
+             console.log(`Successfully populated ${count} random idols (R/SR/SSR) from Starlight Stage API.`);
         } catch (e) {
             console.error("Failed to sync idols:", e);
         }
@@ -92,7 +103,12 @@ const getGameConfig = () => {
         const data = fs.readFileSync(CONFIG_PATH, 'utf8');
         return JSON.parse(data);
     } catch (e) {
-        return { chapters: [], promoCodes: [], loginBonus: { resetHour: 0, cycleDays: 7, rewards: [] } };
+        return { 
+            chapters: [], 
+            promoCodes: [], 
+            loginBonus: { resetHour: 0, cycleDays: 7, rewards: [] },
+            gacha: { bannerName: "Universal", rates: { SSR: 3, SR: 12, R: 85, N: 0 } }
+        };
     }
 };
 
@@ -200,7 +216,6 @@ app.post('/api/user/login_bonus', (req, res) => {
 
         // If action is CLAIM
         if (!isNewDay) {
-            // Already claimed today, return current status but mark as claimed
             const currentStreak = user.login_streak || 1;
             const cycleDay = ((currentStreak - 1) % 7) + 1;
             const todayReward = loginConfig.rewards.find(r => r.day === cycleDay) || loginConfig.rewards[0];
@@ -231,11 +246,10 @@ app.post('/api/user/login_bonus', (req, res) => {
             });
         }
 
-        // Update User
         db.run("UPDATE users SET last_login_date = ?, login_streak = ? WHERE id = ?", [Date.now(), newStreak, userId]);
 
         res.json({
-            claimedToday: false, // It was a new claim
+            claimedToday: false, 
             streak: newStreak,
             todayConfig: reward,
             allRewards: loginConfig.rewards
@@ -290,7 +304,7 @@ app.get('/api/user/:id/idols', (req, res) => {
   });
 });
 
-// --- PRESENTS & ANNOUNCEMENTS (RESTORED) ---
+// --- PRESENTS & ANNOUNCEMENTS ---
 
 app.get('/api/user/:id/presents', (req, res) => {
     db.all("SELECT * FROM presents WHERE user_id = ?", [req.params.id], (err, rows) => {
@@ -303,7 +317,6 @@ app.post('/api/user/:id/presents/claim', (req, res) => {
     db.get("SELECT * FROM presents WHERE id = ? AND user_id = ?", [presentId, userId], (err, p) => {
         if (!p) return res.json({ success: false });
 
-        // Grant Item
         if (p.type === 'MONEY') db.run("UPDATE users SET money = money + ? WHERE id = ?", [p.amount, userId]);
         else if (p.type === 'JEWEL') db.run("UPDATE users SET starJewels = starJewels + ? WHERE id = ?", [p.amount, userId]);
         else if (p.type === 'ITEM_STAMINA') {
@@ -313,7 +326,6 @@ app.post('/api/user/:id/presents/claim', (req, res) => {
              db.run("INSERT INTO user_items (user_id, item_name, count) VALUES (?, 'trainerTicket', ?) ON CONFLICT(user_id, item_name) DO UPDATE SET count = count + ?", [userId, p.amount, p.amount]);
         }
 
-        // Delete Present
         db.run("DELETE FROM presents WHERE id = ?", [presentId]);
         res.json({ success: true });
     });
@@ -325,13 +337,12 @@ app.get('/api/announcements', (req, res) => {
     });
 });
 
-// --- WORK SYSTEM (RESTORED) ---
+// --- WORK SYSTEM ---
 
 app.get('/api/work/status/:userId', (req, res) => {
     const userId = req.params.userId;
     db.get("SELECT wp.current_zone_id, wp.progress_percent, wz.area_name, wz.zone_name, wz.stamina_cost FROM work_progress wp JOIN work_zones wz ON wp.current_zone_id = wz.id WHERE wp.user_id = ?", [userId], (err, row) => {
         if (!row) {
-             // Init if missing
              db.run("INSERT OR IGNORE INTO work_progress (user_id, current_zone_id, progress_percent) VALUES (?, 1, 0)", [userId]);
              return res.json({ area_name: 'Harajuku', zone_name: 'Area 1-1', progress_percent: 0, stamina_cost: 2 });
         }
@@ -439,10 +450,32 @@ app.post('/api/idol/retire', (req, res) => {
 
 // --- GACHA & SHOP & ITEMS ---
 
+app.get('/api/gacha/history/:userId', (req, res) => {
+    db.all("SELECT * FROM gacha_history WHERE user_id = ? ORDER BY pulled_at DESC LIMIT 50", [req.params.userId], (err, rows) => {
+        res.json(rows || []);
+    });
+});
+
+app.get('/api/gacha/details', (req, res) => {
+    const config = getGameConfig();
+    const rates = config.gacha?.rates || { SSR: 3, SR: 12, R: 85 };
+    
+    db.all("SELECT id, name, rarity, type, image, vocal, dance, visual FROM idol_templates", (err, rows) => {
+        if (!rows) return res.json({ rates, pool: [] });
+        
+        // Return full pool information
+        res.json({ rates, pool: rows });
+    });
+});
+
 app.post('/api/gacha', (req, res) => {
     const { userId, count } = req.body;
     const cost = count === 10 ? 2500 : 250;
     
+    const config = getGameConfig();
+    const gachaConf = config.gacha || { rates: { SSR: 3, SR: 12, R: 85, N: 0 } };
+    const rates = gachaConf.rates;
+
     db.get("SELECT starJewels FROM users WHERE id = ?", [userId], (err, row) => {
         if (!row || row.starJewels < cost) return res.json({ error: "Not enough jewels" });
         
@@ -452,21 +485,32 @@ app.post('/api/gacha', (req, res) => {
             const pulled = [];
             for (let i = 0; i < count; i++) {
                 const rand = Math.random() * 100;
-                let rarity = 'R'; 
-                if (rand < 3) rarity = 'SSR';
-                else if (rand < 15) rarity = 'SR';
+                let rarity = 'N'; 
                 
+                if (rand < rates.SSR) rarity = 'SSR';
+                else if (rand < (rates.SSR + rates.SR)) rarity = 'SR';
+                else if (rand < (rates.SSR + rates.SR + rates.R)) rarity = 'R';
+                else rarity = 'N';
+
                 const pool = templates.filter(t => t.rarity === rarity);
                 const finalPool = pool.length > 0 ? pool : templates;
+                
                 const selected = finalPool[Math.floor(Math.random() * finalPool.length)];
                 
                 const instanceId = `${Date.now()}-${i}-${Math.floor(Math.random()*1000)}`;
                 pulled.push({ ...selected, instanceId });
             }
 
+            // Save to User Idols
             const stmt = db.prepare("INSERT INTO user_idols (id, user_id, template_id, level, isLocked, affection) VALUES (?, ?, ?, 1, 0, 0)");
             pulled.forEach(p => stmt.run(p.instanceId, userId, p.id));
             stmt.finalize();
+
+            // Save to Gacha History
+            const histStmt = db.prepare("INSERT INTO gacha_history (user_id, idol_id, idol_name, rarity, pulled_at) VALUES (?, ?, ?, ?, ?)");
+            const now = Date.now();
+            pulled.forEach(p => histStmt.run(userId, p.id, p.name, p.rarity, now));
+            histStmt.finalize();
 
             const newJewels = row.starJewels - cost;
             db.run("UPDATE users SET starJewels = ? WHERE id = ?", [newJewels, userId]);
@@ -583,7 +627,6 @@ app.get('/api/commu/dialogs/:id', (req, res) => {
     const chapter = config.chapters.find(c => c.id === chapterId);
     if (chapter) return res.json(chapter.dialogs);
 
-    // Fallback check Fanmade
     db.all("SELECT * FROM fan_dialogs WHERE chapter_id = ? ORDER BY sort_order ASC", [chapterId], (err, rows) => {
         if (rows && rows.length > 0) {
             const dialogs = rows.map(r => ({

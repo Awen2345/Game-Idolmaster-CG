@@ -1,5 +1,16 @@
 
 {
+  "gacha": {
+    "bannerName": "UNIVERSAL GACHA",
+    "description": "Scout over 300 idols from the production!",
+    "rates": {
+      "SSR": 3.0,
+      "SR": 12.0,
+      "R": 85.0,
+      "N": 0.0
+    },
+    "poolSize": 300
+  },
   "loginBonus": {
     "resetHour": 0,
     "cycleDays": 7,

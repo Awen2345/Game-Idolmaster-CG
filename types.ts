@@ -192,3 +192,27 @@ export interface WorkResult {
     isLevelUp: boolean;
     isZoneClear: boolean;
 }
+
+// --- GACHA EXTENSIONS ---
+
+export interface GachaHistoryEntry {
+    id: number;
+    idol_name: string;
+    rarity: Rarity;
+    pulled_at: number;
+}
+
+export interface GachaPoolInfo {
+    rates: { [key: string]: number }; // SSR: 3.0, etc
+    pool: {
+        id: string;
+        name: string;
+        rarity: Rarity;
+        image: string;
+        type: IdolType;
+        vocal: number;
+        dance: number;
+        visual: number;
+        individualRate: number; // Calculated field
+    }[];
+}

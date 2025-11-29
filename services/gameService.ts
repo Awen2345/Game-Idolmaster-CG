@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { UserState, Idol, EventData, Chapter, DialogLine, UserSprite, Present, Announcement, BattleOpponent, BattleResult, IdolType, WorkResult, LoginBonusResult } from '../types';
+import { UserState, Idol, EventData, Chapter, DialogLine, UserSprite, Present, Announcement, BattleOpponent, BattleResult, IdolType, WorkResult, LoginBonusResult, GachaHistoryEntry, GachaPoolInfo } from '../types';
 
 const API_URL = '/api';
 
@@ -183,6 +183,17 @@ export const useGameEngine = () => {
         alert("Gacha failed: Server Error");
         return null;
     }
+  };
+
+  const fetchGachaHistory = async (): Promise<GachaHistoryEntry[]> => {
+      if (!userId) return [];
+      const res = await fetch(`${API_URL}/gacha/history/${userId}`);
+      return await res.json();
+  };
+
+  const fetchGachaDetails = async (): Promise<GachaPoolInfo> => {
+      const res = await fetch(`${API_URL}/gacha/details`);
+      return await res.json();
   };
 
   const retireIdols = async (idsToRetire: string[]) => {
@@ -467,7 +478,8 @@ export const useGameEngine = () => {
 
   return {
     userId, user, idols, event, loading, error, presents, announcements, canClaimBonus,
-    login, register, logout, useItem, pullGacha, retireIdols, trainIdol, specialTraining, starLesson, buyItem, doEventWork, doNormalWork,
+    login, register, logout, useItem, pullGacha, fetchGachaHistory, fetchGachaDetails,
+    retireIdols, trainIdol, specialTraining, starLesson, buyItem, doEventWork, doNormalWork,
     fetchChapters, fetchDialogs, markChapterRead, saveFanmadeStory, uploadSprite, fetchUserSprites, redeemPromoCode,
     claimPresent,
     fetchDeck, saveDeck, findOpponent, completeBattle,
