@@ -9,7 +9,8 @@ export enum Rarity {
 export enum IdolType {
   CUTE = 'CUTE',
   COOL = 'COOL',
-  PASSION = 'PASSION'
+  PASSION = 'PASSION',
+  ALL = 'ALL' // Used for Jobs
 }
 
 export interface Idol {
@@ -178,20 +179,45 @@ export interface BattleResult {
     }
 }
 
+// --- WORK TYPES ---
+
+export interface WorkRegion {
+    id: number;
+    name: string;
+    description: string;
+    image_url?: string;
+    is_unlocked: boolean;
+}
+
+export interface WorkJob {
+    id: number;
+    region_id: number;
+    title: string;
+    type: IdolType | 'ALL'; // Recommended type
+    stamina_cost: number;
+    duration_text: string; // e.g. "10h" (Visual only for now)
+    difficulty: number; // 1-5 stars
+    rewards: {
+        money: number;
+        exp: number;
+        items?: string[];
+    }
+}
+
 export interface WorkResult {
     success: boolean;
+    isGreatSuccess: boolean;
     newStamina: number;
     expGained: number;
     moneyGained: number;
     affectionGained: number;
-    progress: number; // 0-100 for current zone
     drops: {
         type: 'IDOL' | 'ITEM';
         name: string;
         rarity?: string;
+        count?: number;
     } | null;
     isLevelUp: boolean;
-    isZoneClear: boolean;
 }
 
 // --- GACHA EXTENSIONS ---
