@@ -22,7 +22,7 @@ const CONFIG_PATH = path.join(__dirname, 'game_config.json');
 
 // --- IDOL DATA SYNC ---
 const syncIdolData = async () => {
-    // 1. Check if we need to force update (Fixing the "All Cute" bug OR Expanding pool size)
+    // 1. Check if we need to force update
     db.get("SELECT count(*) as count FROM idol_templates WHERE type IN ('COOL', 'PASSION')", (err, row) => {
         const hasVariety = row && row.count > 0;
         
@@ -31,8 +31,8 @@ const syncIdolData = async () => {
 
             // Trigger update if:
             // 1. Data exists but no variety (All Cute bug)
-            // 2. Data exists but fewer than 500 cards (Upgrade from 300 to 1000)
-            const needsUpdate = (total > 0 && !hasVariety) || (total > 0 && total < 500);
+            // 2. Data exists but fewer than 2000 cards (We want MAX cards now)
+            const needsUpdate = (total > 0 && !hasVariety) || (total > 0 && total < 2000);
 
             if (total > 0 && !needsUpdate) {
                 console.log(`Idol database is healthy (${total} cards).`);
@@ -40,7 +40,7 @@ const syncIdolData = async () => {
             }
 
             if (needsUpdate) {
-                console.log(`Database needs update (Count: ${total}, Variety: ${hasVariety}). Purging to resync 1000+ cards...`);
+                console.log(`Database needs update (Count: ${total}). Purging to resync ALL cards...`);
                 await new Promise(resolve => db.run("DELETE FROM idol_templates", resolve));
             }
 
@@ -58,14 +58,14 @@ const syncIdolData = async () => {
                  // Filter for N (1), R (3), SR (5), SSR (7)
                  cards = cards.filter(c => [1, 3, 5, 7].includes(c.rarity_dep.rarity));
     
-                 // SHUFFLE the cards
+                 // SHUFFLE the cards (Optional, but good for randomness if we ever limit again)
                  for (let i = cards.length - 1; i > 0; i--) {
                     const j = Math.floor(Math.random() * (i + 1));
                     [cards[i], cards[j]] = [cards[j], cards[i]];
                  }
     
-                 // Take 1000 (Expanded Pool)
-                 const selectedCards = cards.slice(0, 1000);
+                 // REMOVED LIMIT: Fetch everything!
+                 const selectedCards = cards; 
     
                  const stmt = db.prepare("INSERT OR IGNORE INTO idol_templates (id, name, rarity, type, maxLevel, image, vocal, dance, visual, attack, defense) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
                  
@@ -83,7 +83,6 @@ const syncIdolData = async () => {
                      const image = `https://hidamarirhodonite.kirara.ca/card/${card.id}.png`;
                      
                      // SAFE ATTRIBUTE MAPPING
-                     // Convert to string explicitly to handle null/undefined/numbers safely
                      const rawAttr = String(card.attribute || '').toLowerCase();
                      
                      let type = 'CUTE'; // Default
@@ -111,7 +110,7 @@ const syncIdolData = async () => {
                      count++;
                  }
                  stmt.finalize();
-                 console.log(`Successfully populated ${count} mixed idols (N/R/SR/SSR - Cute/Cool/Passion) from API.`);
+                 console.log(`Successfully populated ${count} mixed idols (N/R/SR/SSR) from API.`);
             } catch (e) {
                 console.error("Failed to sync idols:", e);
             }

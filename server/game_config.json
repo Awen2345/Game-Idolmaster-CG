@@ -2,14 +2,14 @@
 {
   "gacha": {
     "bannerName": "UNIVERSAL GACHA",
-    "description": "Scout from a pool of over 1000 idols! (SSR, SR, R, N)",
+    "description": "Ultimate Scout! Pool contains ALL available idols (4000+ Cards) including N, R, SR, and SSR!",
     "rates": {
       "SSR": 3.0,
       "SR": 12.0,
       "R": 85.0,
       "N": 0.0
     },
-    "poolSize": 1000
+    "poolSize": 5000
   },
   "loginBonus": {
     "resetHour": 0,
