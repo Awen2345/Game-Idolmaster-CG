@@ -145,10 +145,14 @@ db.serialize(() => {
     title TEXT,
     type TEXT, -- CUTE, COOL, PASSION, ALL
     stamina_cost INTEGER,
+    duration_text TEXT,
     difficulty INTEGER,
     base_money INTEGER,
     base_exp INTEGER
   )`);
+  
+  // Try to add duration_text if missing (migration)
+  db.run("ALTER TABLE work_jobs ADD COLUMN duration_text TEXT", (err) => {});
 
   // 21. Gacha History
   db.run(`CREATE TABLE IF NOT EXISTS gacha_history (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, idol_id TEXT, idol_name TEXT, rarity TEXT, pulled_at INTEGER)`);
@@ -156,24 +160,31 @@ db.serialize(() => {
   // --- SEED WORK DATA (NEW) ---
   db.get("SELECT count(*) as count FROM work_regions", (err, row) => {
       if (row && row.count === 0) {
-          // Regions
-          db.run("INSERT INTO work_regions VALUES (1, 'Central Area', 'Tokyo, Kanagawa, Chiba')");
-          db.run("INSERT INTO work_regions VALUES (2, 'North Area', 'Hokkaido, Tohoku')");
+          // Regions modeled after Starlight Stage
+          db.run("INSERT INTO work_regions VALUES (1, 'Capital Area', 'Tokyo, Saitama, Chiba')");
+          db.run("INSERT INTO work_regions VALUES (2, 'North East Area', 'Hokkaido, Tohoku')");
           db.run("INSERT INTO work_regions VALUES (3, 'West Area', 'Osaka, Kyoto, Hyogo')");
           db.run("INSERT INTO work_regions VALUES (4, 'South Area', 'Kyushu, Okinawa')");
 
-          // Jobs for Central Area
-          db.run("INSERT INTO work_jobs VALUES (1, 1, 'Variety Show Recording', 'ALL', 10, 1, 500, 10)");
-          db.run("INSERT INTO work_jobs VALUES (2, 1, 'Radio Guest Appearance', 'CUTE', 15, 2, 800, 20)");
-          db.run("INSERT INTO work_jobs VALUES (3, 1, 'Fashion Magazine Shoot', 'COOL', 20, 3, 1200, 35)");
+          // Jobs for Capital Area (Region 1)
+          db.run("INSERT INTO work_jobs VALUES (1, 1, 'Variety Show Recording', 'ALL', 10, '10h 00m', 1, 500, 10)");
+          db.run("INSERT INTO work_jobs VALUES (2, 1, 'Radio Guest Appearance', 'CUTE', 15, '6h 00m', 2, 800, 20)");
+          db.run("INSERT INTO work_jobs VALUES (3, 1, 'Fashion Magazine Shoot', 'COOL', 20, '4h 00m', 3, 1200, 35)");
+          db.run("INSERT INTO work_jobs VALUES (4, 1, 'National Commercial', 'PASSION', 25, '12h 00m', 4, 2000, 50)");
           
-          // Jobs for North Area
-          db.run("INSERT INTO work_jobs VALUES (4, 2, 'Local Commercial', 'PASSION', 12, 1, 600, 15)");
-          db.run("INSERT INTO work_jobs VALUES (5, 2, 'Snow Festival Live', 'COOL', 25, 4, 1500, 50)");
+          // Jobs for North East Area (Region 2)
+          db.run("INSERT INTO work_jobs VALUES (5, 2, 'Local Commercial', 'PASSION', 12, '8h 00m', 1, 600, 15)");
+          db.run("INSERT INTO work_jobs VALUES (6, 2, 'Snow Festival Live', 'COOL', 25, '10h 00m', 4, 1500, 50)");
+          db.run("INSERT INTO work_jobs VALUES (7, 2, 'Hot Spring Report', 'ALL', 18, '6h 00m', 2, 900, 25)");
 
-          // Jobs for West Area
-          db.run("INSERT INTO work_jobs VALUES (6, 3, 'Comedy Sketch', 'PASSION', 15, 2, 900, 25)");
-          db.run("INSERT INTO work_jobs VALUES (7, 3, 'Temple Visit Coverage', 'CUTE', 18, 3, 1000, 30)");
+          // Jobs for West Area (Region 3)
+          db.run("INSERT INTO work_jobs VALUES (8, 3, 'Comedy Sketch', 'PASSION', 15, '5h 00m', 2, 900, 25)");
+          db.run("INSERT INTO work_jobs VALUES (9, 3, 'Temple Visit Coverage', 'CUTE', 18, '7h 00m', 3, 1000, 30)");
+          db.run("INSERT INTO work_jobs VALUES (10, 3, 'Theme Park Parade', 'ALL', 22, '3h 00m', 3, 1300, 40)");
+          
+          // Jobs for South Area (Region 4)
+          db.run("INSERT INTO work_jobs VALUES (11, 4, 'Beach PV Shoot', 'CUTE', 20, '8h 00m', 3, 1100, 35)");
+          db.run("INSERT INTO work_jobs VALUES (12, 4, 'Resort Live', 'PASSION', 28, '10h 00m', 5, 2500, 60)");
       }
   });
 
