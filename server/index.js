@@ -1,4 +1,3 @@
-
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -52,7 +51,7 @@ const syncIdolData = async () => {
         const hasVariety = row && row.count > 0;
         db.get("SELECT count(*) as total FROM idol_templates", async (err, row) => {
             const total = row ? row.total : 0;
-            // Force update if database is small (<2000 cards) or has only one type
+            // Force update if database is small (<2000 cards) or has only one type (Variety Bug Fix)
             const needsUpdate = (total > 0 && !hasVariety) || (total > 0 && total < 2000); 
             
             if (total > 0 && !needsUpdate) {
@@ -61,12 +60,13 @@ const syncIdolData = async () => {
             }
             
             if (needsUpdate) {
-                console.log("Updating Idol Database...");
+                console.log("Updating Idol Database (Fixing Attributes)...");
                 await new Promise(resolve => db.run("DELETE FROM idol_templates", resolve));
             }
 
             try {
-                 // Fetch all cards from Kirara API
+                 console.log("Fetching from Starlight Stage API...");
+                 // Use native fetch instead of axios
                  const response = await fetch("https://starlight.kirara.ca/api/v1/list/card_t?keys=id,name,rarity_dep,attribute,vocal_max,dance_max,visual_max");
                  if (!response.ok) throw new Error("API Fetch failed");
                  const json = await response.json();
@@ -83,8 +83,13 @@ const syncIdolData = async () => {
                          let rarity = rId === 7 ? 'SSR' : rId === 5 ? 'SR' : rId === 3 ? 'R' : 'N';
                          let maxLevel = rId === 7 ? 90 : rId === 5 ? 70 : rId === 3 ? 40 : 20;
                          const image = `https://hidamarirhodonite.kirara.ca/card/${card.id}.png`;
-                         const rawAttr = String(card.attribute || '').toLowerCase();
-                         let type = rawAttr === 'cool' ? 'COOL' : rawAttr === 'passion' ? 'PASSION' : 'CUTE';
+                         
+                         // FIX: Handle numeric attribute mapping
+                         // 1 = Cute, 2 = Cool, 3 = Passion
+                         let type = 'CUTE';
+                         if (card.attribute === 2) type = 'COOL';
+                         else if (card.attribute === 3) type = 'PASSION';
+                         
                          const totalStats = card.vocal_max + card.dance_max + card.visual_max;
                          
                          stmt.run(card.id.toString(), card.name, rarity, type, maxLevel, image, card.vocal_max, card.dance_max, card.visual_max, Math.floor(totalStats * 0.6), Math.floor(totalStats * 0.4));
@@ -93,7 +98,7 @@ const syncIdolData = async () => {
                  });
                  stmt.finalize();
                  console.log(`Synced ${cards.length} idols.`);
-            } catch (e) { console.error("Failed to sync idols:", e); }
+            } catch (e) { console.error("Failed to sync idols:", e.message); }
         });
     });
 };
