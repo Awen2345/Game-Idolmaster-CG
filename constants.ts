@@ -139,20 +139,63 @@ export const MOCK_SONGS: Song[] = [
         title: 'Star!!',
         artist: 'Cinderella Project',
         url: 'https://www.youtube.com/watch?v=SwmwS_7Wfww', // Official Anime OP 1
-        cover: 'https://i.ytimg.com/vi/SwmwS_7Wfww/hqdefault.jpg'
+        cover: 'https://i.ytimg.com/vi/SwmwS_7Wfww/hqdefault.jpg',
+        category: 'IDOLMASTER'
     },
     {
         id: 'sng_2',
         title: 'Shine!!',
         artist: 'Cinderella Project',
         url: 'https://www.youtube.com/watch?v=a3YV8z5-t8M', // Official Anime OP 2
-        cover: 'https://i.ytimg.com/vi/a3YV8z5-t8M/hqdefault.jpg'
+        cover: 'https://i.ytimg.com/vi/a3YV8z5-t8M/hqdefault.jpg',
+        category: 'IDOLMASTER'
     },
     {
         id: 'sng_3',
         title: 'M@GIC',
         artist: 'Cinderella Project',
-        url: 'https://www.youtube.com/watch?v=v=0pLgD54y9T0', // Ep 25 Insert
-        cover: 'https://i.ytimg.com/vi/0pLgD54y9T0/hqdefault.jpg'
+        url: 'https://www.youtube.com/watch?v=0pLgD54y9T0', // Ep 25 Insert
+        cover: 'https://i.ytimg.com/vi/0pLgD54y9T0/hqdefault.jpg',
+        category: 'IDOLMASTER'
+    },
+    {
+        id: 'sng_4',
+        title: 'Onegai! Cinderella',
+        artist: 'CINDERELLA GIRLS',
+        url: 'https://www.youtube.com/watch?v=zJg5u5g5W_4',
+        cover: 'https://i.ytimg.com/vi/zJg5u5g5W_4/hqdefault.jpg',
+        category: 'IDOLMASTER'
+    },
+    {
+        id: 'sng_5',
+        title: 'Gurenge',
+        artist: 'LiSA',
+        url: 'https://www.youtube.com/watch?v=CwkzK-F0Y00',
+        cover: 'https://i.ytimg.com/vi/CwkzK-F0Y00/hqdefault.jpg',
+        category: 'ANIME'
+    },
+    {
+        id: 'sng_6',
+        title: 'Idol (Oshi no Ko)',
+        artist: 'YOASOBI',
+        url: 'https://www.youtube.com/watch?v=ZRtdQ81jPUQ',
+        cover: 'https://i.ytimg.com/vi/ZRtdQ81jPUQ/hqdefault.jpg',
+        category: 'ANIME'
+    },
+    {
+        id: 'sng_7',
+        title: 'Pretender',
+        artist: 'Official HIGE DANdism',
+        url: 'https://www.youtube.com/watch?v=TQ8WlA2GXbk',
+        cover: 'https://i.ytimg.com/vi/TQ8WlA2GXbk/hqdefault.jpg',
+        category: 'J-POP'
+    },
+    {
+        id: 'sng_8',
+        title: 'Lemon',
+        artist: 'Kenshi Yonezu',
+        url: 'https://www.youtube.com/watch?v=SX_ViT4Ra7k',
+        cover: 'https://i.ytimg.com/vi/SX_ViT4Ra7k/hqdefault.jpg',
+        category: 'J-POP'
     }
 ];

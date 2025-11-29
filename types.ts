@@ -133,6 +133,7 @@ export interface Song {
   artist: string;
   url: string;
   cover: string;
+  category: 'IDOLMASTER' | 'ANIME' | 'J-POP' | 'OTHER';
 }
 
 export interface Present {
